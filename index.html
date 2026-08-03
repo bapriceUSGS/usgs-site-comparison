@@ -891,6 +891,7 @@ function renderResults(drainages, current, stats, anomalies) {
 
   let html = "";
   window._anomalyList = [];
+  window._siteList = [];
   for (const dr of drainages) {
     const da = anomalies.filter(a=>a.drainage===dr.name);
     const badge = da.length ? `<span class="badge badge-alert">${da.length} flagged</span>` : `<span class="badge badge-ok">OK</span>`;
@@ -916,7 +917,9 @@ function renderResults(drainages, current, stats, anomalies) {
       const htStr = ht ? `${ht.value.toFixed(1)}°C` : '<span class="val-na">-</span>';
       const time = sd?.["00060"]?.dateTime || sd?.["00010"]?.dateTime || "";
       const timeStr = time ? new Date(time).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) : "";
-      html += `<tr class="${cls}" style="cursor:pointer" onclick="showSiteGraph('${site.id}','${site.name.replace(/'/g,"\\'")}','${dr.name}')"><td>${site.name}</td><td style="font-family:monospace;font-size:0.8em;color:#475569">${site.id}</td><td class="val-num">${qStr}</td><td class="val-num">${hqStr}</td><td class="val-num">${pctStr}</td><td class="val-num">${tStr}</td><td class="val-num">${htStr}</td><td class="val-num" style="font-size:0.8em;color:#64748b">${timeStr}</td></tr>`;
+      const siteIdx = window._siteList.length;
+      window._siteList.push({id:site.id, name:site.name, drainage:dr.name});
+      html += `<tr class="${cls}" style="cursor:pointer" onclick="showSiteGraph(window._siteList[${siteIdx}].id,window._siteList[${siteIdx}].name,window._siteList[${siteIdx}].drainage)"><td>${site.name}</td><td style="font-family:monospace;font-size:0.8em;color:#475569">${site.id}</td><td class="val-num">${qStr}</td><td class="val-num">${hqStr}</td><td class="val-num">${pctStr}</td><td class="val-num">${tStr}</td><td class="val-num">${htStr}</td><td class="val-num" style="font-size:0.8em;color:#64748b">${timeStr}</td></tr>`;
     }
     html += `</tbody></table>`;
     if (da.length) {
