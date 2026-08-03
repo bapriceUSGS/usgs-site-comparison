@@ -642,6 +642,66 @@ const COMPARISON_GROUPS = [
   {name:"Wind River WY", sites:["06218500","06220800","06227600","06228000"]},
 ];
 
+// Critical flow and temperature thresholds
+// When current values approach these, flag with severity based on proximity:
+// Within 15% = medium ("Approaching critical"), 10% = high, 5% or below = critical
+// timing: [startMonth, startDay, endMonth, endDay] or null for year-round
+const CRITICAL_THRESHOLDS = [
+  {id:"12301250",name:"Tobacco River at Eureka",flow:100,temp:null,timing:null},
+  {id:"12338300",name:"NF Blackfoot R ab Dry Gulch nr Ovando",flow:null,temp:18.3,timing:[4,1,10,31]},
+  {id:"12340000",name:"Blackfoot River near Bonner",flow:700,temp:null,timing:[4,1,10,31]},
+  {id:"12344000",name:"Bitterroot River near Darby",flow:250,temp:22.8,timing:null},
+  {id:"12350250",name:"Bitterroot River at Bell Crossing nr Victor",flow:300,temp:22.8,timing:[4,1,10,31]},
+  {id:"12352500",name:"Bitterroot River near Missoula",flow:600,temp:22.8,timing:null},
+  {id:"12370000",name:"Swan River near Bigfork",flow:309,temp:null,timing:null},
+  {id:"12372000",name:"Flathead River near Polson",flow:3200,temp:null,timing:null},
+  {id:"12363000",name:"Flathead River at Columbia Falls",flow:3200,temp:null,timing:null},
+  {id:"12388700",name:"Flathead River at Perma",flow:3200,temp:null,timing:null},
+  {id:"12362500",name:"S F Flathead River nr Columbia Falls",flow:400,temp:null,timing:null},
+  {id:"12334510",name:"Rock Creek near Clinton",flow:250,temp:null,timing:null},
+  {id:"12334550",name:"Clark Fork at Turah Bridge nr Bonner",flow:500,temp:null,timing:[4,1,10,31]},
+  {id:"12340500",name:"Clark Fork above Missoula",flow:833,temp:null,timing:null},
+  {id:"06024450",name:"Big Hole River bl Big Lake Cr at Wisdom",flow:60,temp:22.8,timing:[4,1,10,31]},
+  {id:"06025250",name:"Big Hole River at Maiden Rock nr Divide",flow:250,temp:22.8,timing:[4,1,10,31]},
+  {id:"06026210",name:"Big Hole River near Glen",flow:290,temp:22.8,timing:[4,1,10,31]},
+  {id:"06026420",name:"Big Hole R bl Hamilton Ditch nr Twin Bridges",flow:200,temp:22.8,timing:[4,1,10,31]},
+  {id:"06026500",name:"Jefferson River near Twin Bridges",flow:280,temp:22.8,timing:[4,1,10,31]},
+  {id:"06027600",name:"Jefferson River at Parsons Bdg nr Silver Star",flow:50,temp:null,timing:[4,1,10,31]},
+  {id:"06043500",name:"Gallatin River near Gallatin Gateway",flow:400,temp:22.8,timing:[4,1,10,31]},
+  {id:"06052500",name:"Gallatin River at Logan",flow:850,temp:22.8,timing:[7,1,8,31]},
+  {id:"06077200",name:"Smith River bl Eagle Cr nr Fort Logan",flow:140,temp:22.8,timing:[7,1,8,31]},
+  {id:"06077500",name:"Smith River near Eden",flow:150,temp:22.8,timing:[7,1,4,30]},
+  {id:"06085800",name:"Sun River at Simms",flow:130,temp:null,timing:[4,1,10,31]},
+  {id:"06108800",name:"Teton River at Loma",flow:10,temp:null,timing:[4,1,10,31]},
+  {id:"06091700",name:"Two Medicine River bl South Fork nr Browning",flow:20,temp:null,timing:null},
+  {id:"06092020",name:"Two Medicine River ab Badger Cr nr Piegan",flow:20,temp:null,timing:null},
+  {id:"06093200",name:"Badger Cr bl Four Horns Canal nr Browning",flow:20,temp:null,timing:null},
+  {id:"06098800",name:"Cut Bank Cr ab Gillam Coulee nr Sundance",flow:2,temp:null,timing:null},
+  {id:"06099000",name:"Cut Bank Creek at Cut Bank",flow:2,temp:null,timing:null},
+  {id:"06133000",name:"Milk River at western crossing of intl boundary",flow:2,temp:null,timing:null},
+  {id:"06137575",name:"Boxelder Creek at Box Elder",flow:2,temp:null,timing:null},
+  {id:"06181000",name:"Poplar River near Poplar",flow:4.8,temp:null,timing:null},
+  {id:"06185110",name:"Big Muddy Creek nr mouth nr Culbertson",flow:0.1,temp:null,timing:null},
+  {id:"06098120",name:"Birch Creek at Bullhead Bridge nr Valier",flow:15,temp:null,timing:null},
+  {id:"06139850",name:"Beaver Creek ab Elk Creek nr Rocky Boy",flow:1,temp:null,timing:null},
+  {id:"06139800",name:"West Fork Beaver Creek nr Rocky Boy",flow:1,temp:null,timing:null},
+  {id:"06139900",name:"Beaver Cr at Res Bndry nr Rocky Boy",flow:1,temp:null,timing:null},
+  {id:"06138580",name:"Big Sandy Cr ab Spring Coulee nr Laredo",flow:2,temp:null,timing:null},
+  {id:"06119600",name:"Musselshell River nr Martinsdale",flow:0,temp:null,timing:[4,1,10,31]},
+  {id:"06120500",name:"Musselshell River at Harlowton",flow:0,temp:null,timing:[4,1,10,31]},
+  {id:"06123030",name:"Musselshell River ab Mud Cr nr Shawmut",flow:0,temp:null,timing:[4,1,10,31]},
+  {id:"06125600",name:"Musselshell River ab Big Coulee Creek at Lavina",flow:0,temp:null,timing:[4,1,10,31]},
+  {id:"06126500",name:"Musselshell River near Roundup",flow:0,temp:null,timing:[4,1,10,31]},
+  {id:"06130500",name:"Musselshell River at Mosby",flow:0,temp:null,timing:[4,1,10,31]},
+  {id:"06306300",name:"Tongue River at State Line nr Decker",flow:0,temp:null,timing:null},
+  {id:"06307500",name:"Tongue River at Tongue R Dam nr Decker",flow:0,temp:null,timing:null},
+  {id:"06208500",name:"Clarks Fork Yellowstone River at Edgar",flow:0,temp:null,timing:null},
+  {id:"06294500",name:"Bighorn River ab Tullock Cr nr Bighorn",flow:0,temp:null,timing:null},
+  {id:"06308500",name:"Tongue River at Miles City",flow:0,temp:null,timing:null},
+  {id:"06326500",name:"Powder River near Locate",flow:0,temp:null,timing:null},
+  {id:"06287000",name:"Bighorn R bl Yellowtail Afterbay Dam nr St. Xavier",flow:1500,temp:null,timing:null},
+];
+
 // ===== USGS API =====
 const IV_URL = "https://waterservices.usgs.gov/nwis/iv/";
 const STAT_URL = "https://waterservices.usgs.gov/nwis/stat/";
@@ -1110,6 +1170,9 @@ async function runAnalysis() {
     setStatus("Checking for erratic diurnal patterns (temperature IV data)...","loading");
     const diurnalAnomalies = await detectDiurnalAnomalies(allIds, drainages);
     anomalies.push(...diurnalAnomalies);
+    setStatus("Checking critical flow/temperature thresholds...","loading");
+    const criticalAnomalies = checkCriticalThresholds(current, drainages);
+    anomalies.push(...criticalAnomalies);
     anomalies.sort((a,b)=>{const o={critical:0,high:1,medium:2};return (o[a.severity]??3)-(o[b.severity]??3);});
     lastCurrent = current; lastStats = stats; lastDrainages = drainages;
     renderResults(drainages, current, dailyMeans, stats, anomalies);
@@ -1128,6 +1191,99 @@ async function runAnalysis() {
     console.error(e);
   }
   btn.disabled=false; btn.textContent="Run Analysis";
+}
+
+// ===== CRITICAL THRESHOLD CHECKS =====
+function checkCriticalThresholds(current, drainages) {
+  const anomalies = [];
+  const now = new Date();
+  const month = now.getMonth() + 1;
+  const day = now.getDate();
+
+  for (const thresh of CRITICAL_THRESHOLDS) {
+    // Check if we're in the active timing window
+    if (thresh.timing) {
+      const [sm, sd, em, ed] = thresh.timing;
+      const startDate = new Date(now.getFullYear(), sm-1, sd);
+      const endDate = new Date(now.getFullYear(), em-1, ed);
+      if (now < startDate || now > endDate) continue;
+    }
+
+    const sd = current[thresh.id];
+    if (!sd) continue;
+
+    // Find drainage name for this site
+    let drainageName = "Unknown";
+    let siteName = thresh.name;
+    for (const dr of drainages) {
+      const found = dr.sites.find(s => s.id === thresh.id);
+      if (found) { drainageName = dr.name; siteName = found.name; break; }
+    }
+
+    // Check flow threshold
+    if (thresh.flow !== null && sd["00060"]) {
+      const currentFlow = sd["00060"].value;
+      const critFlow = thresh.flow;
+
+      if (critFlow === 0) {
+        // "All" = any flow is being monitored, flag if very low
+        // Skip for now - these are "report all" sites
+      } else {
+        const pctOfCritical = (currentFlow / critFlow) * 100;
+
+        if (currentFlow <= critFlow) {
+          anomalies.push({siteId:thresh.id, siteName, drainage:drainageName, severity:"critical",
+            type:"AT OR BELOW CRITICAL FLOW",
+            detail:`${currentFlow.toFixed(0)} cfs is AT or BELOW the critical threshold of ${critFlow} cfs (${pctOfCritical.toFixed(0)}% of critical)`
+          });
+        } else if (currentFlow <= critFlow * 1.05) {
+          anomalies.push({siteId:thresh.id, siteName, drainage:drainageName, severity:"critical",
+            type:"Within 5% of critical flow",
+            detail:`${currentFlow.toFixed(0)} cfs is within 5% of the critical threshold of ${critFlow} cfs (${pctOfCritical.toFixed(0)}% of critical)`
+          });
+        } else if (currentFlow <= critFlow * 1.10) {
+          anomalies.push({siteId:thresh.id, siteName, drainage:drainageName, severity:"high",
+            type:"Within 10% of critical flow",
+            detail:`${currentFlow.toFixed(0)} cfs is within 10% of the critical threshold of ${critFlow} cfs (${pctOfCritical.toFixed(0)}% of critical)`
+          });
+        } else if (currentFlow <= critFlow * 1.15) {
+          anomalies.push({siteId:thresh.id, siteName, drainage:drainageName, severity:"medium",
+            type:"Approaching critical flow (within 15%)",
+            detail:`${currentFlow.toFixed(0)} cfs is within 15% of the critical threshold of ${critFlow} cfs (${pctOfCritical.toFixed(0)}% of critical)`
+          });
+        }
+      }
+    }
+
+    // Check temperature threshold
+    if (thresh.temp !== null && sd["00010"]) {
+      const currentTemp = sd["00010"].value;
+      const critTemp = thresh.temp;
+
+      if (currentTemp >= critTemp) {
+        anomalies.push({siteId:thresh.id, siteName, drainage:drainageName, severity:"critical",
+          type:"AT OR ABOVE CRITICAL TEMPERATURE",
+          detail:`${currentTemp.toFixed(1)}°C is AT or ABOVE the critical threshold of ${critTemp.toFixed(1)}°C`
+        });
+      } else if (currentTemp >= critTemp * 0.95) {
+        anomalies.push({siteId:thresh.id, siteName, drainage:drainageName, severity:"critical",
+          type:"Within 5% of critical temperature",
+          detail:`${currentTemp.toFixed(1)}°C is within 5% of the critical threshold of ${critTemp.toFixed(1)}°C`
+        });
+      } else if (currentTemp >= critTemp * 0.90) {
+        anomalies.push({siteId:thresh.id, siteName, drainage:drainageName, severity:"high",
+          type:"Within 10% of critical temperature",
+          detail:`${currentTemp.toFixed(1)}°C is within 10% of the critical threshold of ${critTemp.toFixed(1)}°C`
+        });
+      } else if (currentTemp >= critTemp * 0.85) {
+        anomalies.push({siteId:thresh.id, siteName, drainage:drainageName, severity:"medium",
+          type:"Approaching critical temperature (within 15%)",
+          detail:`${currentTemp.toFixed(1)}°C is within 15% of the critical threshold of ${critTemp.toFixed(1)}°C`
+        });
+      }
+    }
+  }
+  return anomalies;
 }
 
 // ===== MAP =====
