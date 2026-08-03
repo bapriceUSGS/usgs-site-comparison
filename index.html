@@ -636,23 +636,29 @@ const IV_URL = "https://waterservices.usgs.gov/nwis/iv/";
 const STAT_URL = "https://waterservices.usgs.gov/nwis/stat/";
 
 async function fetchIV(siteIds) {
-  const url = `${IV_URL}?format=json&sites=${siteIds.join(",")}&parameterCd=00060,00010&siteStatus=active`;
-  const resp = await fetch(url);
-  if (!resp.ok) throw new Error(`USGS returned HTTP ${resp.status}. Check your internet connection or try again in a moment.`);
-  const data = await resp.json();
   const results = {};
-  for (const ts of (data?.value?.timeSeries || [])) {
+  const batchSize = 50; // USGS can handle ~50 sites per IV request
+  for (let i = 0; i < siteIds.length; i += batchSize) {
+    const batch = siteIds.slice(i, i + batchSize);
     try {
-      const sid = ts.sourceInfo.siteCode[0].value;
-      const param = ts.variable.variableCode[0].value;
-      const vals = ts.values[0].value;
-      if (!vals.length) continue;
-      const latest = vals[vals.length-1];
-      const v = parseFloat(latest.value);
-      if (isNaN(v) || latest.value==="-999999") continue;
-      if (!results[sid]) results[sid] = {};
-      results[sid][param] = {value:v, dateTime:latest.dateTime};
-    } catch(e) { continue; }
+      const url = `${IV_URL}?format=json&sites=${batch.join(",")}&parameterCd=00060,00010&siteStatus=active`;
+      const resp = await fetch(url);
+      if (!resp.ok) continue;
+      const data = await resp.json();
+      for (const ts of (data?.value?.timeSeries || [])) {
+        try {
+          const sid = ts.sourceInfo.siteCode[0].value;
+          const param = ts.variable.variableCode[0].value;
+          const vals = ts.values[0].value;
+          if (!vals.length) continue;
+          const latest = vals[vals.length-1];
+          const v = parseFloat(latest.value);
+          if (isNaN(v) || latest.value==="-999999") continue;
+          if (!results[sid]) results[sid] = {};
+          results[sid][param] = {value:v, dateTime:latest.dateTime};
+        } catch(e) { continue; }
+      }
+    } catch(e) { console.warn("IV batch error:", e); continue; }
   }
   return results;
 }
@@ -947,6 +953,7 @@ async function runAnalysis() {
     setStatus(`Fetching current data for ${allIds.length} sites...`,"loading");
     const current = await fetchIV(allIds);
     const reporting = Object.keys(current).length;
+    if (reporting === 0) throw new Error("No data received from USGS. The service may be temporarily unavailable. Try again in a minute.");
     setStatus(`Got ${reporting}/${allIds.length} sites. Fetching historical statistics...`,"loading");
     const stats = await fetchStats(allIds);
     setStatus("Running anomaly detection...","loading");
@@ -1226,3 +1233,4 @@ async function showSiteGraph(siteId, siteName, drainageName) {
 </script>
 </body>
 </html>
+
