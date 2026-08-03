@@ -796,9 +796,10 @@ function detectAnomalies(current, stats, drainages) {
     // Compare the RATIO between adjacent sites today vs the historical ratio for this date.
     // Example: if Bell Crossing is historically 40% of Darby on Jul 31 (irrigation season),
     // then seeing it at 38% today is fine. But if it drops to 15% when historically 40%, flag it.
-    if (dr.type === "mainstem") {
+    if (dr.type === "mainstem" && dr.sites.length >= 2) {
       for (let i=0; i<dr.sites.length-1; i++) {
         const up=dr.sites[i], dn=dr.sites[i+1];
+        if (!up || !dn) continue;
         const upQ=current[up.id]?.["00060"]?.value;
         const dnQ=current[dn.id]?.["00060"]?.value;
         if (!upQ || !dnQ || upQ<=0) continue;
@@ -844,6 +845,7 @@ function detectAnomalies(current, stats, drainages) {
       // Also check temperature progression along the mainstem vs historical
       for (let i=0; i<dr.sites.length-1; i++) {
         const up=dr.sites[i], dn=dr.sites[i+1];
+        if (!up || !dn) continue;
         const upT=current[up.id]?.["00010"]?.value;
         const dnT=current[dn.id]?.["00010"]?.value;
         if (upT==null || dnT==null) continue;
@@ -1037,6 +1039,7 @@ function renderResults(drainages, current, dailyMeans, stats, anomalies) {
     html += `<div class="drainage-section"><div class="drainage-header" onclick="this.nextElementSibling.classList.toggle('hidden')"><span>${dr.name} (${dr.type})</span>${badge}</div><div class="drainage-body">`;
     html += `<table class="site-table"><thead><tr><th>Site Name</th><th>Site #</th><th style="text-align:right">Current Q</th><th style="text-align:right">Hist Mean Q</th><th style="text-align:right">% Normal</th><th style="text-align:right">Current Temp</th><th style="text-align:right">Hist Mean Temp</th><th style="text-align:right">Time</th></tr></thead><tbody>`;
     for (const site of dr.sites) {
+      if (!site || !site.id) continue;
       const sd = current[site.id];
       const dm = dailyMeans[site.id]; // daily mean for % normal comparison
       const flagged = da.some(a=>a.siteId===site.id);
@@ -1146,12 +1149,24 @@ function getFilteredSites() {
     siteIds = drainages.flatMap(d => d.sites.map(s => s.id));
   } else {
     const officeSites = new Set(OFFICES[office]);
-    // Include all sites in matching drainages (for comparison context)
-    // but primarily focus on the office's sites
-    const matchingDrainages = drainages.filter(d => d.sites.some(s => officeSites.has(s.id)));
-    siteIds = matchingDrainages.flatMap(d => d.sites.map(s => s.id));
-    drainages = matchingDrainages;
+    // Filter drainages to only include those with office sites
+    // AND only include sites that belong to this office within each drainage
+    const filteredDrainages = [];
+    for (const d of drainages) {
+      const officeSitesInDrainage = d.sites.filter(s => officeSites.has(s.id));
+      if (officeSitesInDrainage.length > 0) {
+        filteredDrainages.push({
+          ...d,
+          sites: officeSitesInDrainage
+        });
+      }
+    }
+    drainages = filteredDrainages;
+    siteIds = drainages.flatMap(d => d.sites.map(s => s.id));
   }
+
+  // Safety: remove any drainages with 0 sites
+  drainages = drainages.filter(d => d.sites && d.sites.length > 0);
 
   return { siteIds, drainages };
 }
