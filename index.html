@@ -663,6 +663,36 @@ async function fetchIV(siteIds) {
   return results;
 }
 
+// Fetch recent daily mean values (for apples-to-apples comparison with historical means)
+const DV_URL = "https://waterservices.usgs.gov/nwis/dv/";
+async function fetchDailyMeans(siteIds) {
+  const results = {};
+  const batchSize = 50;
+  for (let i = 0; i < siteIds.length; i += batchSize) {
+    const batch = siteIds.slice(i, i + batchSize);
+    try {
+      const url = `${DV_URL}?format=json&sites=${batch.join(",")}&parameterCd=00060,00010&period=P1D&siteStatus=active`;
+      const resp = await fetch(url);
+      if (!resp.ok) continue;
+      const data = await resp.json();
+      for (const ts of (data?.value?.timeSeries || [])) {
+        try {
+          const sid = ts.sourceInfo.siteCode[0].value;
+          const param = ts.variable.variableCode[0].value;
+          const vals = ts.values?.[0]?.value || [];
+          if (!vals.length) continue;
+          const latest = vals[vals.length-1];
+          const v = parseFloat(latest.value);
+          if (isNaN(v) || latest.value==="-999999") continue;
+          if (!results[sid]) results[sid] = {};
+          results[sid][param] = {value:v, dateTime:latest.dateTime};
+        } catch(e) { continue; }
+      }
+    } catch(e) { console.warn("DV batch error:", e); continue; }
+  }
+  return results;
+}
+
 async function fetchStats(siteIds) {
   const results = {};
   const batch = 10;
@@ -880,7 +910,7 @@ function setStatus(msg, cls) {
   el.textContent=msg; el.className=`status-bar ${cls||""}`;
 }
 
-function renderResults(drainages, current, stats, anomalies) {
+function renderResults(drainages, current, dailyMeans, stats, anomalies) {
   const today = getToday();
   const summary = document.getElementById("summary");
   const counts={critical:0,high:0,medium:0};
@@ -902,20 +932,24 @@ function renderResults(drainages, current, stats, anomalies) {
     const da = anomalies.filter(a=>a.drainage===dr.name);
     const badge = da.length ? `<span class="badge badge-alert">${da.length} flagged</span>` : `<span class="badge badge-ok">OK</span>`;
     html += `<div class="drainage-section"><div class="drainage-header" onclick="this.nextElementSibling.classList.toggle('hidden')"><span>${dr.name} (${dr.type})</span>${badge}</div><div class="drainage-body">`;
-    html += `<table class="site-table"><thead><tr><th>Site Name</th><th>Site #</th><th style="text-align:right">Discharge</th><th style="text-align:right">Hist Discharge</th><th style="text-align:right">% Normal</th><th style="text-align:right">Temp</th><th style="text-align:right">Hist Temp</th><th style="text-align:right">Time</th></tr></thead><tbody>`;
+    html += `<table class="site-table"><thead><tr><th>Site Name</th><th>Site #</th><th style="text-align:right">Current Q</th><th style="text-align:right">Hist Mean Q</th><th style="text-align:right">% Normal</th><th style="text-align:right">Current Temp</th><th style="text-align:right">Hist Mean Temp</th><th style="text-align:right">Time</th></tr></thead><tbody>`;
     for (const site of dr.sites) {
       const sd = current[site.id];
+      const dm = dailyMeans[site.id]; // daily mean for % normal comparison
       const flagged = da.some(a=>a.siteId===site.id);
       const cls = flagged?"flagged":"";
-      const q = sd?.["00060"]?.value;
-      const t = sd?.["00010"]?.value;
-      const hq = stats[site.id]?.["00060"]?.[today];
-      const ht = stats[site.id]?.["00010"]?.[today];
+      const q = sd?.["00060"]?.value;  // instantaneous (for display)
+      const t = sd?.["00010"]?.value;  // instantaneous (for display)
+      const dmq = dm?.["00060"]?.value; // daily mean discharge
+      const hq = stats[site.id]?.["00060"]?.[today]; // historical mean
+      const ht = stats[site.id]?.["00010"]?.[today]; // historical mean temp
       const qStr = q!=null ? `${q.toFixed(0)} cfs` : '<span class="val-na">N/A</span>';
       const hqStr = hq ? `${hq.value.toFixed(0)} cfs` : '<span class="val-na">-</span>';
       let pctStr = '<span class="val-na">-</span>';
-      if (q!=null && hq && hq.value>0) {
-        const pct = (q/hq.value)*100;
+      // Use daily mean vs historical mean for % normal (apples to apples)
+      const pctBase = dmq != null ? dmq : q; // prefer daily mean, fall back to IV
+      if (pctBase!=null && hq && hq.value>0) {
+        const pct = (pctBase/hq.value)*100;
         const cls2 = pct<60?"pct-low":pct>140?"pct-high":"pct-ok";
         pctStr = `<span class="pct-normal ${cls2}">${pct.toFixed(0)}%</span>`;
       }
@@ -954,12 +988,14 @@ async function runAnalysis() {
     const current = await fetchIV(allIds);
     const reporting = Object.keys(current).length;
     if (reporting === 0) throw new Error("No data received from USGS. The service may be temporarily unavailable. Try again in a minute.");
-    setStatus(`Got ${reporting}/${allIds.length} sites. Fetching historical statistics...`,"loading");
+    setStatus(`Got ${reporting}/${allIds.length} sites. Fetching daily means for comparison...`,"loading");
+    const dailyMeans = await fetchDailyMeans(allIds);
+    setStatus(`Fetching historical statistics...`,"loading");
     const stats = await fetchStats(allIds);
-    setStatus("Running anomaly detection...","loading");
-    const anomalies = detectAnomalies(current, stats, drainages);
+    setStatus("Running anomaly detection (daily mean vs historical mean)...","loading");
+    const anomalies = detectAnomalies(dailyMeans, stats, drainages);
     lastCurrent = current; lastStats = stats; lastDrainages = drainages;
-    renderResults(drainages, current, stats, anomalies);
+    renderResults(drainages, current, dailyMeans, stats, anomalies);
     document.getElementById("lastRun").textContent = `Last run: ${new Date().toLocaleString()}`;
     if (!anomalies.length) setStatus(`All ${reporting} reporting sites within normal ranges.`,"success");
     else {
@@ -1233,4 +1269,3 @@ async function showSiteGraph(siteId, siteName, drainageName) {
 </script>
 </body>
 </html>
-
