@@ -608,6 +608,22 @@ const OFFICES = {
   "Western WY":["06218500","06220800","06221400","06224000","06227600","06228000","06228350","06235500","06236100","06253000","06258000","06638090","09188500","09189020","09191150","09192750","09193700","09195000","09195600","09196000","09196500","09201500","09202000","09202700","09203500","09204500","09205000","09205300","09209400","09210500","09211200","09213500","09216050","09216550","09216560","09216950","09217000","09217010","09217900","09218500","09218850","09218895","09219200","09220000","09221505","09222100","09222400","09223000","09224000","09224700","09228000","09229500","10016900","13010065","13011000","13011500","13011820","13011900","13013650","13014300","13014500","13015000","13016305","13016450","13018300","13018350","13018750","13019500","13022500","13025500"]
 };
 
+// Custom comparison groups - sites that should be compared against each other
+// regardless of drainage grouping (similar area/size/elevation)
+// Users can edit these via the Settings panel
+const COMPARISON_GROUPS = [
+  {name:"Milk River Tributaries - Chinook area", sites:["06142400","06145500","06146980","06149500","06151500"]},
+  {name:"Upper Clark Fork headwaters", sites:["12323242","12323250","12323600","12323750","12323800"]},
+  {name:"Flathead Forks", sites:["12355500","12358500","12362500"]},
+  {name:"Missouri headwater rivers at mouth", sites:["06036650","06041500","06052500"]},
+  {name:"Yellowstone upper tribs", sites:["06195600","06200000","06205000","06207500","06209500"]},
+  {name:"Bighorn River mainstem WY-MT", sites:["06274300","06279500","06287000","06294500"]},
+  {name:"Tongue River mainstem", sites:["06306000","06306300","06307500","06307830","06308500"]},
+  {name:"Bitterroot mainstem", sites:["12342500","12344000","12350250","12352500"]},
+  {name:"Sun River system", sites:["06078500","06079000","06080900","06085800","06089000"]},
+  {name:"Wind River WY", sites:["06218500","06220800","06227600","06228000"]},
+];
+
 // ===== USGS API =====
 const IV_URL = "https://waterservices.usgs.gov/nwis/iv/";
 const STAT_URL = "https://waterservices.usgs.gov/nwis/stat/";
@@ -971,6 +987,7 @@ function renderApp() {
       <label>Drainage:</label>
       <select id="drSelect"><option value="all">All Drainages</option>${DRAINAGES.map(d=>`<option value="${d.name}">${d.name}</option>`).join("")}</select>
       <button id="runBtn" onclick="runAnalysis()">Run Analysis</button>
+      <button onclick="showSettings()" style="background:#475569">Settings</button>
       <span id="lastRun" style="font-size:0.8em;color:#64748b;margin-left:auto"></span>
     </div>
     <div id="status" class="status-bar">Select an office or drainage, then click "Run Analysis" to fetch live data from USGS.</div>
@@ -1141,6 +1158,39 @@ function getFilteredSites() {
   return { siteIds, drainages };
 }
 
+// Settings panel for editing comparison groups
+function showSettings() {
+  const modal = document.createElement("div");
+  modal.className = "graph-modal";
+  let groupsHtml = COMPARISON_GROUPS.map((g,i) => `
+    <div style="margin-bottom:10px;padding:10px;background:#f8fafc;border-radius:5px">
+      <strong>${g.name}</strong><br>
+      <span style="font-family:monospace;font-size:0.8em;color:#475569">${g.sites.join(", ")}</span>
+    </div>`).join("");
+
+  modal.innerHTML = `<div class="graph-modal-content">
+    <button class="graph-modal-close" onclick="this.closest('.graph-modal').remove()">&times;</button>
+    <div class="graph-title">Comparison Groups</div>
+    <div class="graph-subtitle">Sites in the same group are compared against each other for percent-of-normal and shown together on graphs. Edit the COMPARISON_GROUPS array in the HTML source to customize.</div>
+    <div style="margin-top:15px">${groupsHtml}</div>
+    <div style="margin-top:15px;padding:15px;background:#ecfeff;border-radius:5px;font-size:0.85em">
+      <strong>To add/edit groups:</strong> Edit the COMPARISON_GROUPS section near the top of index.html. Each group has a name and an array of site IDs. Sites in the same group will be plotted together on graphs and compared for anomaly detection.
+    </div>
+  </div>`;
+  document.body.appendChild(modal);
+  modal.addEventListener("click", (e) => { if (e.target === modal) modal.remove(); });
+}
+
+// Find comparison group peers for a given site
+function getComparisonPeers(siteId) {
+  for (const group of COMPARISON_GROUPS) {
+    if (group.sites.includes(siteId)) {
+      return group.sites.filter(id => id !== siteId);
+    }
+  }
+  return [];
+}
+
 renderApp();
 
 // ===== GRAPHING =====
@@ -1219,18 +1269,34 @@ async function showAnomalyGraph(anomaly) {
       }
     }
   } else if (anomaly.type.includes("nearby tributaries")) {
-    // Find all other sites in the same tributary group and fetch their data
-    for (const dr of lastDrainages) {
-      if (dr.name === anomaly.drainage && dr.type === "tributaries") {
-        const otherSites = dr.sites.filter(s => s.id !== anomaly.siteId);
-        // Fetch up to 4 nearby tribs (to keep it readable)
-        for (const site of otherSites.slice(0, 4)) {
-          const dv = await fetchDV(site.id, paramCd);
-          if (dv.length) {
-            nearbyTribs.push({name: site.name, id: site.id, data: dv});
+    // First check comparison groups for defined peers
+    const peers = getComparisonPeers(anomaly.siteId);
+    if (peers.length > 0) {
+      for (const peerId of peers.slice(0, 4)) {
+        const dv = await fetchDV(peerId, paramCd);
+        if (dv.length) {
+          // Find site name
+          let peerName = peerId;
+          for (const dr of lastDrainages) {
+            const found = dr.sites.find(s => s.id === peerId);
+            if (found) { peerName = found.name; break; }
           }
+          nearbyTribs.push({name: peerName, id: peerId, data: dv});
         }
-        break;
+      }
+    } else {
+      // Fall back to same drainage group
+      for (const dr of lastDrainages) {
+        if (dr.name === anomaly.drainage && dr.type === "tributaries") {
+          const otherSites = dr.sites.filter(s => s.id !== anomaly.siteId);
+          for (const site of otherSites.slice(0, 4)) {
+            const dv = await fetchDV(site.id, paramCd);
+            if (dv.length) {
+              nearbyTribs.push({name: site.name, id: site.id, data: dv});
+            }
+          }
+          break;
+        }
       }
     }
   }
@@ -1365,17 +1431,36 @@ async function showSiteGraph(siteId, siteName, drainageName) {
   const dvT = await fetchDV(siteId, "00010");
   const histT = getHistoricalLine(lastStats, siteId, "00010");
 
+  // Fetch comparison group peers
+  const peers = getComparisonPeers(siteId);
+  const peerDataQ = [];
+  const peerDataT = [];
+  const peerColors = ["#059669","#7c3aed","#ea580c","#0284c7"];
+  for (let pi=0; pi<Math.min(peers.length, 4); pi++) {
+    const peerId = peers[pi];
+    let peerName = peerId;
+    for (const dr of DRAINAGES) {
+      const found = dr.sites.find(s => s.id === peerId);
+      if (found) { peerName = found.name; break; }
+    }
+    const pq = await fetchDV(peerId, "00060");
+    if (pq.length) peerDataQ.push({name:peerName, data:pq, color:peerColors[pi]});
+    const pt = await fetchDV(peerId, "00010");
+    if (pt.length) peerDataT.push({name:peerName, data:pt, color:peerColors[pi]});
+  }
+
   modal.querySelector(".graph-subtitle").textContent =
-    `${drainageName} | Last 7 days (instantaneous values) vs historical average`;
+    `${drainageName} | Last 7 days (instantaneous values)${peers.length ? " + comparison group" : ""} vs historical average`;
 
   // Discharge chart
   if (dvQ.length || histQ.length) {
+    const datasets = [
+      ...(dvQ.length ? [{label:`${siteName} (actual)`, data:dvQ.map(d=>({x:d.date,y:d.value})), borderColor:"#2563eb", borderWidth:1.5, fill:false, tension:0.3, pointRadius:0}] : []),
+      ...(histQ.length ? [{label:`${siteName} (historical avg)`, data:histQ.map(d=>({x:d.date,y:d.value})), borderColor:"#2563eb", borderDash:[6,4], borderWidth:1.5, fill:false, pointRadius:0, tension:0.3}] : []),
+      ...peerDataQ.map(p => ({label:`${p.name}`, data:p.data.map(d=>({x:d.date,y:d.value})), borderColor:p.color, borderWidth:1.5, fill:false, tension:0.3, pointRadius:0}))
+    ];
     new Chart(document.getElementById("siteChartQ").getContext("2d"), {
-      type: "line",
-      data: { datasets: [
-        ...(dvQ.length ? [{label:"Discharge (actual)", data:dvQ.map(d=>({x:d.date,y:d.value})), borderColor:"#2563eb", borderWidth:1.5, fill:false, tension:0.3, pointRadius:0}] : []),
-        ...(histQ.length ? [{label:"Discharge (historical avg)", data:histQ.map(d=>({x:d.date,y:d.value})), borderColor:"#2563eb", borderDash:[6,4], borderWidth:1.5, fill:false, pointRadius:0, tension:0.3}] : [])
-      ]},
+      type: "line", data: { datasets },
       options: { responsive:true, maintainAspectRatio:false, plugins:{legend:{position:"bottom"}},
         scales:{ x:{type:"time",time:{displayFormats:{hour:"MMM d ha",day:"MMM d"}}}, y:{title:{display:true,text:"Discharge (cfs)"},beginAtZero:true} } }
     });
@@ -1385,12 +1470,13 @@ async function showSiteGraph(siteId, siteName, drainageName) {
 
   // Temperature chart
   if (dvT.length || histT.length) {
+    const datasets = [
+      ...(dvT.length ? [{label:`${siteName} (actual)`, data:dvT.map(d=>({x:d.date,y:d.value})), borderColor:"#dc2626", borderWidth:1.5, fill:false, tension:0.3, pointRadius:0}] : []),
+      ...(histT.length ? [{label:`${siteName} (historical avg)`, data:histT.map(d=>({x:d.date,y:d.value})), borderColor:"#dc2626", borderDash:[6,4], borderWidth:1.5, fill:false, pointRadius:0, tension:0.3}] : []),
+      ...peerDataT.map(p => ({label:`${p.name}`, data:p.data.map(d=>({x:d.date,y:d.value})), borderColor:p.color, borderWidth:1.5, fill:false, tension:0.3, pointRadius:0}))
+    ];
     new Chart(document.getElementById("siteChartT").getContext("2d"), {
-      type: "line",
-      data: { datasets: [
-        ...(dvT.length ? [{label:"Temperature (actual)", data:dvT.map(d=>({x:d.date,y:d.value})), borderColor:"#dc2626", borderWidth:1.5, fill:false, tension:0.3, pointRadius:0}] : []),
-        ...(histT.length ? [{label:"Temperature (historical avg)", data:histT.map(d=>({x:d.date,y:d.value})), borderColor:"#dc2626", borderDash:[6,4], borderWidth:1.5, fill:false, pointRadius:0, tension:0.3}] : [])
-      ]},
+      type: "line", data: { datasets },
       options: { responsive:true, maintainAspectRatio:false, plugins:{legend:{position:"bottom"}},
         scales:{ x:{type:"time",time:{displayFormats:{hour:"MMM d ha",day:"MMM d"}}}, y:{title:{display:true,text:"Temperature (°C)"}} } }
     });
