@@ -663,7 +663,7 @@ const THRESHOLDS = {
   tempHistDev: 3.0,       // flag if current temp is 3+ C from historical mean
   flowHistDevPct: 40,     // flag if current flow is 40%+ from historical mean
   flowDeficitPct: 10,     // flag if downstream has 10%+ less flow than upstream
-  pctNormalOutlier: 30    // flag if a tributary pct-of-normal differs 30%+ from siblings
+  pctNormalOutlier: 30    // flag if a tributary pct-of-normal differs 30%+ from nearby tributaries
 };
 
 // ===== USGS API =====
@@ -876,8 +876,8 @@ function detectAnomalies(current, stats, drainages) {
           if (diff >= T.pctNormalOutlier) {
             const sev = diff>=60?"high":"medium";
             anomalies.push({siteId:p.site.id, siteName:p.site.name, drainage:dr.name, severity:sev,
-              type:"Pct-of-normal outlier vs sibling tributaries",
-              detail:`${p.site.name} is at ${p.pctNormal.toFixed(0)}% of normal while sibling average is ${avg.toFixed(0)}% of normal (differs by ${diff.toFixed(0)} points)`
+              type:"Pct-of-normal outlier vs nearby tributaries",
+              detail:`${p.site.name} is at ${p.pctNormal.toFixed(0)}% of normal while nearby tributary average is ${avg.toFixed(0)}% of normal (differs by ${diff.toFixed(0)} points)`
             });
           }
         }
@@ -1061,6 +1061,8 @@ async function showAnomalyGraph(anomaly) {
   let compDV = [];
   let compHist = [];
   let compName = "";
+  let nearbyTribs = []; // For tributary anomalies, store all nearby trib data
+
   if (anomaly.type.includes("upstream/downstream") || anomaly.type.includes("relationship")) {
     // Find the upstream site
     for (const dr of lastDrainages) {
@@ -1070,6 +1072,21 @@ async function showAnomalyGraph(anomaly) {
         compName = upSite.name;
         compDV = await fetchDV(upSite.id, paramCd);
         compHist = getHistoricalLine(lastStats, upSite.id, paramCd);
+        break;
+      }
+    }
+  } else if (anomaly.type.includes("nearby tributaries")) {
+    // Find all other sites in the same tributary group and fetch their data
+    for (const dr of lastDrainages) {
+      if (dr.name === anomaly.drainage && dr.type === "tributaries") {
+        const otherSites = dr.sites.filter(s => s.id !== anomaly.siteId);
+        // Fetch up to 4 nearby tribs (to keep it readable)
+        for (const site of otherSites.slice(0, 4)) {
+          const dv = await fetchDV(site.id, paramCd);
+          if (dv.length) {
+            nearbyTribs.push({name: site.name, id: site.id, data: dv});
+          }
+        }
         break;
       }
     }
@@ -1130,6 +1147,22 @@ async function showAnomalyGraph(anomaly) {
       fill: false,
       pointRadius: 0,
       tension: 0.3
+    });
+  }
+
+  // Add nearby tributaries (each gets a distinct color)
+  const tribColors = ["#059669","#7c3aed","#ea580c","#0284c7"];
+  for (let i=0; i<nearbyTribs.length; i++) {
+    const trib = nearbyTribs[i];
+    const color = tribColors[i % tribColors.length];
+    datasets.push({
+      label: `${trib.name} (nearby trib)`,
+      data: trib.data.map(d => ({x: d.date, y: d.value})),
+      borderColor: color,
+      borderWidth: 1.5,
+      fill: false,
+      tension: 0.3,
+      pointRadius: 1
     });
   }
 
