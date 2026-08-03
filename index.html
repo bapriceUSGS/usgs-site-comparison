@@ -1,0 +1,848 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>USGS MT-WY Site Comparison Tool</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f0f4f8;
+            color: #1a1a2e;
+            padding: 20px;
+            line-height: 1.5;
+        }
+        .container { max-width: 1400px; margin: 0 auto; }
+        header {
+            background: #1a1a2e;
+            color: white;
+            padding: 20px 30px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        header h1 { font-size: 1.5em; margin-bottom: 5px; }
+        header p { opacity: 0.8; font-size: 0.9em; }
+        .controls {
+            background: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            flex-wrap: wrap;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .controls label { font-weight: 600; font-size: 0.9em; }
+        .controls select, .controls button {
+            padding: 8px 16px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            font-size: 0.9em;
+        }
+        .controls button {
+            background: #2563eb;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        .controls button:hover { background: #1d4ed8; }
+        .controls button:disabled { background: #94a3b8; cursor: not-allowed; }
+        .status-bar {
+            background: #e2e8f0;
+            padding: 10px 15px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            font-size: 0.85em;
+        }
+        .status-bar.loading { background: #fef3c7; }
+        .status-bar.error { background: #fee2e2; color: #991b1b; }
+        .status-bar.success { background: #d1fae5; color: #065f46; }
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        .summary-card {
+            background: white; padding: 15px; border-radius: 8px;
+            text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .summary-card .number { font-size: 2em; font-weight: 700; }
+        .summary-card .label { font-size: 0.8em; color: #64748b; margin-top: 4px; }
+        .card-critical .number { color: #dc2626; }
+        .card-high .number { color: #d97706; }
+        .card-medium .number { color: #0891b2; }
+        .card-ok .number { color: #059669; }
+        .drainage-section {
+            background: white; border-radius: 8px; margin-bottom: 15px;
+            overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .drainage-header {
+            background: #1e293b; color: white; padding: 12px 20px;
+            font-weight: 600; cursor: pointer;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .drainage-header:hover { background: #334155; }
+        .drainage-header .badge {
+            padding: 2px 8px; border-radius: 10px; font-size: 0.75em;
+        }
+        .badge-alert { background: #dc2626; color: white; }
+        .badge-ok { background: #059669; color: white; }
+        .drainage-body { padding: 15px 20px; }
+        .site-table { width: 100%; border-collapse: collapse; font-size: 0.85em; }
+        .site-table th {
+            text-align: left; padding: 8px 10px;
+            border-bottom: 2px solid #e2e8f0; font-weight: 600; color: #475569;
+        }
+        .site-table td { padding: 8px 10px; border-bottom: 1px solid #f1f5f9; }
+        .site-table tr.flagged { background: #fef2f2; }
+        .site-table tr.flagged td:first-child { border-left: 3px solid #dc2626; }
+        .val-num { text-align: right; font-family: monospace; }
+        .val-na { color: #94a3b8; text-align: right; }
+        .pct-normal { font-size: 0.8em; }
+        .pct-low { color: #dc2626; font-weight: 600; }
+        .pct-high { color: #2563eb; font-weight: 600; }
+        .pct-ok { color: #059669; }
+        .anomaly-item {
+            border-left: 4px solid #ccc; padding: 10px 15px;
+            margin: 8px 0; border-radius: 0 5px 5px 0; background: #f8fafc;
+            font-size: 0.85em;
+        }
+        .anomaly-item.critical { border-left-color: #dc2626; background: #fef2f2; }
+        .anomaly-item.high { border-left-color: #d97706; background: #fffbeb; }
+        .anomaly-item.medium { border-left-color: #0891b2; background: #ecfeff; }
+        .anomaly-item .atitle { font-weight: 600; margin-bottom: 3px; }
+        .severity-tag {
+            display: inline-block; padding: 1px 6px; border-radius: 3px;
+            font-size: 0.7em; font-weight: 700; text-transform: uppercase; margin-right: 5px;
+        }
+        .severity-tag.critical { background: #dc2626; color: white; }
+        .severity-tag.high { background: #d97706; color: white; }
+        .severity-tag.medium { background: #0891b2; color: white; }
+        .hidden { display: none; }
+        .file-warning {
+            background: #fef3c7; border: 1px solid #f59e0b; padding: 15px;
+            border-radius: 8px; margin-bottom: 15px; font-size: 0.9em;
+        }
+        .graph-modal {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.7); z-index: 1000;
+            display: flex; align-items: center; justify-content: center;
+            padding: 20px;
+        }
+        .graph-modal-content {
+            background: white; border-radius: 12px; padding: 25px;
+            max-width: 900px; width: 100%; max-height: 90vh; overflow-y: auto;
+            position: relative;
+        }
+        .graph-modal-close {
+            position: absolute; top: 10px; right: 15px;
+            font-size: 1.5em; cursor: pointer; color: #64748b;
+            background: none; border: none;
+        }
+        .graph-modal-close:hover { color: #1a1a2e; }
+        .graph-title { font-size: 1.1em; font-weight: 600; margin-bottom: 5px; }
+        .graph-subtitle { font-size: 0.85em; color: #64748b; margin-bottom: 15px; }
+        .graph-container { position: relative; height: 350px; margin-bottom: 15px; }
+        .graph-legend { font-size: 0.8em; color: #475569; margin-top: 8px; }
+        .anomaly-item { cursor: pointer; }
+        .anomaly-item:hover { opacity: 0.85; }
+        .click-hint { font-size: 0.75em; color: #94a3b8; font-style: italic; }
+</style>
+</head>
+<body>
+<div class="container">
+    <header>
+        <h1>USGS MT-WY Site Comparison Tool</h1>
+        <p>Compares sites against their own historical record and flags anomalies in discharge and water temperature</p>
+    </header>
+    <div id="app"></div>
+</div>
+<script>
+// ===== CONFIGURATION =====
+const DRAINAGES = [
+  { name:"Clark Fork Mainstem", type:"mainstem", sites:[
+    {id:"12323800",name:"Clark Fork near Galen",order:1},
+    {id:"12324200",name:"Clark Fork at Deer Lodge",order:2},
+    {id:"12324400",name:"Clark Fork ab Little Blackfoot R nr Garrison",order:3},
+    {id:"12324680",name:"Clark Fork at Goldcreek",order:4},
+    {id:"12331800",name:"Clark Fork near Drummond",order:5},
+    {id:"12334550",name:"Clark Fork at Turah Bridge nr Bonner",order:6},
+    {id:"12340500",name:"Clark Fork above Missoula",order:7},
+    {id:"12353000",name:"Clark Fork below Missoula",order:8},
+    {id:"12354500",name:"Clark Fork at St. Regis",order:9},
+    {id:"12389000",name:"Clark Fork near Plains",order:10}
+  ]},
+  { name:"Clark Fork Tributaries", type:"tributaries", sites:[
+    {id:"12324590",name:"Little Blackfoot River near Garrison",order:1},
+    {id:"12331500",name:"Flint Creek near Drummond",order:2},
+    {id:"12334510",name:"Rock Creek near Clinton",order:3},
+    {id:"12340000",name:"Blackfoot River near Bonner",order:4},
+    {id:"12354000",name:"St. Regis River near St. Regis",order:5}
+  ]},
+  { name:"Bitterroot River", type:"mainstem", sites:[
+    {id:"12342500",name:"West Fork Bitterroot River nr Conner",order:1},
+    {id:"12344000",name:"Bitterroot River near Darby",order:2},
+    {id:"12350250",name:"Bitterroot River at Bell Crossing nr Victor",order:3},
+    {id:"12352500",name:"Bitterroot River near Missoula",order:4}
+  ]},
+  { name:"Flathead River above Lake", type:"mainstem", sites:[
+    {id:"12355500",name:"N F Flathead River nr Columbia Falls",order:1},
+    {id:"12358500",name:"M F Flathead River near West Glacier",order:2},
+    {id:"12362500",name:"S F Flathead River nr Columbia Falls",order:3},
+    {id:"12363000",name:"Flathead River at Columbia Falls",order:4}
+  ]},
+  { name:"Flathead River below Lake", type:"mainstem", sites:[
+    {id:"12372000",name:"Flathead River near Polson",order:1},
+    {id:"12388700",name:"Flathead River at Perma",order:2}
+  ]},
+  { name:"Jefferson River", type:"mainstem", sites:[
+    {id:"06023100",name:"Beaverhead River at Twin Bridges",order:1},
+    {id:"06026500",name:"Jefferson River near Twin Bridges",order:2},
+    {id:"06027600",name:"Jefferson River at Parsons Bdg nr Silver Star",order:3},
+    {id:"06036650",name:"Jefferson River near Three Forks",order:4}
+  ]},
+  { name:"Madison River", type:"mainstem", sites:[
+    {id:"06037500",name:"Madison River near West Yellowstone",order:1},
+    {id:"06038800",name:"Madison River at Kirby Ranch nr Cameron",order:2},
+    {id:"06040000",name:"Madison River near Cameron",order:3},
+    {id:"06041000",name:"Madison River bl Ennis Lake nr McAllister",order:4},
+    {id:"06041500",name:"Madison River near Norris",order:5}
+  ]},
+  { name:"Gallatin River", type:"mainstem", sites:[
+    {id:"06043500",name:"Gallatin River near Gallatin Gateway",order:1},
+    {id:"06052500",name:"Gallatin River at Logan",order:2}
+  ]},
+  { name:"Missouri River Mainstem", type:"mainstem", sites:[
+    {id:"06054500",name:"Missouri River at Toston",order:1},
+    {id:"06066500",name:"Missouri River bl Holter Dam nr Wolf Cr",order:2},
+    {id:"06074000",name:"Missouri River at Cascade",order:3},
+    {id:"06090300",name:"Missouri River near Great Falls",order:4},
+    {id:"06090800",name:"Missouri River at Fort Benton",order:5},
+    {id:"06109500",name:"Missouri River at Virgelle",order:6},
+    {id:"06115200",name:"Missouri River near Landusky",order:7},
+    {id:"06177000",name:"Missouri River near Wolf Point",order:8},
+    {id:"06185500",name:"Missouri River near Culbertson",order:9}
+  ]},
+  { name:"Sun River", type:"mainstem", sites:[
+    {id:"06080900",name:"Sun River bl Diversion Dam nr Augusta",order:1},
+    {id:"06085800",name:"Sun River at Simms",order:2},
+    {id:"06089000",name:"Sun River near Vaughn",order:3}
+  ]},
+  { name:"Yellowstone River Mainstem", type:"mainstem", sites:[
+    {id:"06191500",name:"Yellowstone River at Corwin Springs",order:1},
+    {id:"06192500",name:"Yellowstone River near Livingston",order:2},
+    {id:"06195950",name:"Yellowstone River at Big Timber",order:3},
+    {id:"06214500",name:"Yellowstone River at Billings",order:4},
+    {id:"06295000",name:"Yellowstone River at Forsyth",order:5},
+    {id:"06309000",name:"Yellowstone River at Miles City",order:6},
+    {id:"06327500",name:"Yellowstone River at Glendive",order:7},
+    {id:"06329500",name:"Yellowstone River near Sidney",order:8}
+  ]},
+  { name:"Yellowstone Tributaries", type:"tributaries", sites:[
+    {id:"06195600",name:"Shields River nr Livingston",order:1},
+    {id:"06200000",name:"Boulder River at Big Timber",order:2},
+    {id:"06205000",name:"Stillwater River near Absarokee",order:3},
+    {id:"06207500",name:"Clarks Fork Yellowstone River nr Belfry",order:4},
+    {id:"06209500",name:"Rock Creek near Red Lodge",order:5}
+  ]},
+  { name:"Bighorn River", type:"mainstem", sites:[
+    {id:"06274300",name:"Bighorn River at Basin WY",order:1},
+    {id:"06279500",name:"Bighorn River at Kane WY",order:2},
+    {id:"06287000",name:"Bighorn R bl Yellowtail Afterbay Dam nr St. Xavier",order:3},
+    {id:"06294500",name:"Bighorn River ab Tullock Cr nr Bighorn",order:4}
+  ]},
+  { name:"Tongue River", type:"mainstem", sites:[
+    {id:"06306300",name:"Tongue River at State Line nr Decker",order:1},
+    {id:"06307500",name:"Tongue River at Tongue R Dam nr Decker",order:2},
+    {id:"06307830",name:"Tongue R bl Brandenberg bridge nr Ashland",order:3},
+    {id:"06308500",name:"Tongue River at Miles City",order:4}
+  ]},
+  { name:"Powder River", type:"mainstem", sites:[
+    {id:"06317000",name:"Powder River at Arvada WY",order:1},
+    {id:"06324500",name:"Powder River at Moorhead",order:2},
+    {id:"06326500",name:"Powder River near Locate",order:3}
+  ]},
+  { name:"Musselshell River", type:"mainstem", sites:[
+    {id:"06120500",name:"Musselshell River at Harlowton",order:1},
+    {id:"06126500",name:"Musselshell River near Roundup",order:2},
+    {id:"06127500",name:"Musselshell River at Musselshell",order:3},
+    {id:"06130500",name:"Musselshell River at Mosby",order:4}
+  ]},
+  { name:"Milk River", type:"mainstem", sites:[
+    {id:"06140500",name:"Milk River at Havre",order:1},
+    {id:"06154100",name:"Milk River near Harlem",order:2},
+    {id:"06155500",name:"Milk River at Malta",order:3},
+    {id:"06174500",name:"Milk River at Nashua",order:4}
+  ]}
+];
+
+const THRESHOLDS = {
+  tempHistDev: 3.0,       // flag if current temp is 3+ C from historical mean
+  flowHistDevPct: 40,     // flag if current flow is 40%+ from historical mean
+  flowDeficitPct: 10,     // flag if downstream has 10%+ less flow than upstream
+  pctNormalOutlier: 30    // flag if a tributary pct-of-normal differs 30%+ from siblings
+};
+
+// ===== USGS API =====
+const IV_URL = "https://waterservices.usgs.gov/nwis/iv/";
+const STAT_URL = "https://waterservices.usgs.gov/nwis/stat/";
+
+async function fetchIV(siteIds) {
+  const url = `${IV_URL}?format=json&sites=${siteIds.join(",")}&parameterCd=00060,00010&siteStatus=active`;
+  const resp = await fetch(url);
+  if (!resp.ok) throw new Error(`USGS returned HTTP ${resp.status}. If you opened this file directly, use OPEN_TOOL.bat instead.`);
+  const data = await resp.json();
+  const results = {};
+  for (const ts of (data?.value?.timeSeries || [])) {
+    try {
+      const sid = ts.sourceInfo.siteCode[0].value;
+      const param = ts.variable.variableCode[0].value;
+      const vals = ts.values[0].value;
+      if (!vals.length) continue;
+      const latest = vals[vals.length-1];
+      const v = parseFloat(latest.value);
+      if (isNaN(v) || latest.value==="-999999") continue;
+      if (!results[sid]) results[sid] = {};
+      results[sid][param] = {value:v, dateTime:latest.dateTime};
+    } catch(e) { continue; }
+  }
+  return results;
+}
+
+async function fetchStats(siteIds) {
+  const results = {};
+  const batch = 10;
+  for (let i=0; i<siteIds.length; i+=batch) {
+    const chunk = siteIds.slice(i, i+batch);
+    for (const pc of ["00060","00010"]) {
+      try {
+        const url = `${STAT_URL}?format=rdb&sites=${chunk.join(",")}&parameterCd=${pc}&statReportType=daily&statTypeCd=mean`;
+        const resp = await fetch(url);
+        if (!resp.ok) continue;
+        const text = await resp.text();
+        parseRDB(text, results);
+      } catch(e) { continue; }
+    }
+  }
+  return results;
+}
+
+function parseRDB(text, results) {
+  const lines = text.split("\n");
+  let headers=null, skipNext=true;
+  for (const line of lines) {
+    if (line.startsWith("#")) continue;
+    if (!headers) { headers=line.split("\t"); skipNext=true; continue; }
+    if (skipNext) { skipNext=false; continue; }
+    if (!line.trim()) continue;
+    const f = line.split("\t");
+    const si=headers.indexOf("site_no"), pi=headers.indexOf("parameter_cd");
+    const mi=headers.indexOf("month_nu"), di=headers.indexOf("day_nu");
+    const ci=headers.indexOf("count_nu"), vi=headers.indexOf("mean_va");
+    if (si<0||pi<0||mi<0||di<0||vi<0) continue;
+    const sid=f[si]?.trim(), pc=f[pi]?.trim();
+    const mo=parseInt(f[mi]), dy=parseInt(f[di]), val=parseFloat(f[vi]);
+    const cnt=parseInt(f[ci])||0;
+    if (!sid||isNaN(mo)||isNaN(dy)||isNaN(val)) continue;
+    const key=`${String(mo).padStart(2,'0')}-${String(dy).padStart(2,'0')}`;
+    if (!results[sid]) results[sid]={};
+    if (!results[sid][pc]) results[sid][pc]={};
+    results[sid][pc][key] = {value:val, count:cnt};
+  }
+}
+
+function getToday() {
+  const d=new Date();
+  return `${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+// ===== ANOMALY DETECTION =====
+function detectAnomalies(current, stats, drainages) {
+  const anomalies = [];
+  const today = getToday();
+  const T = THRESHOLDS;
+
+  for (const dr of drainages) {
+    // 1) Each site vs its own historical record
+    for (const site of dr.sites) {
+      const sd = current[site.id];
+      if (!sd) continue;
+
+      // Temperature vs history
+      if (sd["00010"]) {
+        const hist = stats[site.id]?.["00010"]?.[today];
+        if (hist) {
+          const dev = sd["00010"].value - hist.value;
+          if (Math.abs(dev) >= T.tempHistDev) {
+            const sev = Math.abs(dev)>=T.tempHistDev*2?"critical":Math.abs(dev)>=T.tempHistDev*1.5?"high":"medium";
+            anomalies.push({siteId:site.id, siteName:site.name, drainage:dr.name, severity:sev,
+              type:`Temp ${dev>0?"above":"below"} historical avg`,
+              detail:`${sd["00010"].value.toFixed(1)}°C vs historical mean ${hist.value.toFixed(1)}°C for ${today} (${hist.count} yrs). Deviation: ${dev>0?"+":""}${dev.toFixed(1)}°C`
+            });
+          }
+        }
+      }
+
+      // Discharge vs history
+      if (sd["00060"]) {
+        const hist = stats[site.id]?.["00060"]?.[today];
+        if (hist && hist.value > 0) {
+          const pctDev = ((sd["00060"].value - hist.value)/hist.value)*100;
+          if (Math.abs(pctDev) >= T.flowHistDevPct) {
+            const sev = Math.abs(pctDev)>=T.flowHistDevPct*2.5?"critical":Math.abs(pctDev)>=T.flowHistDevPct*1.5?"high":"medium";
+            anomalies.push({siteId:site.id, siteName:site.name, drainage:dr.name, severity:sev,
+              type:`Discharge ${pctDev>0?"above":"below"} historical avg`,
+              detail:`${sd["00060"].value.toFixed(0)} cfs vs historical mean ${hist.value.toFixed(0)} cfs for ${today} (${hist.count} yrs). ${Math.abs(pctDev).toFixed(0)}% ${pctDev>0?"above":"below"} normal`
+            });
+          }
+        }
+      }
+    }
+
+    // 2) Upstream/downstream ratio check (mainstem only)
+    // Compare the RATIO between adjacent sites today vs the historical ratio for this date.
+    // Example: if Bell Crossing is historically 40% of Darby on Jul 31 (irrigation season),
+    // then seeing it at 38% today is fine. But if it drops to 15% when historically 40%, flag it.
+    if (dr.type === "mainstem") {
+      for (let i=0; i<dr.sites.length-1; i++) {
+        const up=dr.sites[i], dn=dr.sites[i+1];
+        const upQ=current[up.id]?.["00060"]?.value;
+        const dnQ=current[dn.id]?.["00060"]?.value;
+        if (!upQ || !dnQ || upQ<=0) continue;
+
+        // Get historical flows for both sites on this date
+        const upHist=stats[up.id]?.["00060"]?.[today];
+        const dnHist=stats[dn.id]?.["00060"]?.[today];
+
+        // Current ratio (downstream / upstream)
+        const currentRatio = dnQ / upQ;
+
+        if (upHist && dnHist && upHist.value > 0) {
+          // Historical ratio for this date
+          const histRatio = dnHist.value / upHist.value;
+
+          // How different is today's ratio from the historical ratio?
+          const ratioDiff = currentRatio - histRatio;
+          const ratioPctChange = histRatio > 0 ? (ratioDiff / histRatio) * 100 : 0;
+
+          // Only flag if the ratio has changed substantially from historical norm
+          if (Math.abs(ratioPctChange) >= 30 && Math.abs(ratioDiff) >= 0.15) {
+            const sev = Math.abs(ratioPctChange)>=60?"critical":Math.abs(ratioPctChange)>=45?"high":"medium";
+            const direction = ratioDiff < 0 ? "less" : "more";
+            anomalies.push({siteId:dn.id, siteName:dn.name, drainage:dr.name, severity:sev,
+              type:`Unusual upstream/downstream relationship`,
+              detail:`${dn.name} is ${(currentRatio*100).toFixed(0)}% of ${up.name} flow today, but historically it's ${(histRatio*100).toFixed(0)}% on ${today}. The ratio is ${Math.abs(ratioPctChange).toFixed(0)}% ${direction} than expected. (Current: ${dnQ.toFixed(0)}/${upQ.toFixed(0)} cfs, Historical: ${dnHist.value.toFixed(0)}/${upHist.value.toFixed(0)} cfs)`
+            });
+          }
+        } else {
+          // No historical data - only flag truly extreme cases
+          if (dnQ < upQ) {
+            const deficit = ((upQ-dnQ)/upQ)*100;
+            if (deficit >= 50) {
+              anomalies.push({siteId:dn.id, siteName:dn.name, drainage:dr.name, severity:"medium",
+                type:"Downstream flow significantly less than upstream (no historical ratio available)",
+                detail:`${dn.name} (${dnQ.toFixed(0)} cfs) has ${deficit.toFixed(0)}% less flow than ${up.name} (${upQ.toFixed(0)} cfs). No historical ratio data to confirm if normal.`
+              });
+            }
+          }
+        }
+      }
+
+      // Also check temperature progression along the mainstem vs historical
+      for (let i=0; i<dr.sites.length-1; i++) {
+        const up=dr.sites[i], dn=dr.sites[i+1];
+        const upT=current[up.id]?.["00010"]?.value;
+        const dnT=current[dn.id]?.["00010"]?.value;
+        if (upT==null || dnT==null) continue;
+        const upHistT=stats[up.id]?.["00010"]?.[today];
+        const dnHistT=stats[dn.id]?.["00010"]?.[today];
+        if (!upHistT || !dnHistT) continue;
+
+        // Historical temp difference between sites
+        const histTempDiff = dnHistT.value - upHistT.value;
+        // Current temp difference
+        const currentTempDiff = dnT - upT;
+        // How much does the difference deviate from historical?
+        const tempDiffDeviation = currentTempDiff - histTempDiff;
+
+        // Flag if the temperature relationship between sites is 3+ degrees different from normal
+        if (Math.abs(tempDiffDeviation) >= 3.0) {
+          const sev = Math.abs(tempDiffDeviation)>=5?"high":"medium";
+          anomalies.push({siteId:dn.id, siteName:dn.name, drainage:dr.name, severity:sev,
+            type:`Unusual temperature relationship between sites`,
+            detail:`${dn.name} is ${currentTempDiff>=0?"+":""}${currentTempDiff.toFixed(1)}°C vs ${up.name} today, but historically the difference is ${histTempDiff>=0?"+":""}${histTempDiff.toFixed(1)}°C on ${today}. Deviation: ${tempDiffDeviation>=0?"+":""}${tempDiffDeviation.toFixed(1)}°C from expected pattern.`
+          });
+        }
+      }
+    }
+
+    // 3) Percent-of-normal comparison for tributary groups
+    if (dr.type === "tributaries") {
+      const pctNormals = [];
+      for (const site of dr.sites) {
+        const q = current[site.id]?.["00060"]?.value;
+        const hist = stats[site.id]?.["00060"]?.[today];
+        if (q && hist && hist.value > 0) {
+          pctNormals.push({site, pctNormal: (q/hist.value)*100});
+        }
+      }
+      if (pctNormals.length >= 3) {
+        const avg = pctNormals.reduce((a,b)=>a+b.pctNormal,0)/pctNormals.length;
+        for (const p of pctNormals) {
+          const diff = Math.abs(p.pctNormal - avg);
+          if (diff >= T.pctNormalOutlier) {
+            const sev = diff>=60?"high":"medium";
+            anomalies.push({siteId:p.site.id, siteName:p.site.name, drainage:dr.name, severity:sev,
+              type:"Pct-of-normal outlier vs sibling tributaries",
+              detail:`${p.site.name} is at ${p.pctNormal.toFixed(0)}% of normal while sibling average is ${avg.toFixed(0)}% of normal (differs by ${diff.toFixed(0)} points)`
+            });
+          }
+        }
+      }
+    }
+  }
+
+  anomalies.sort((a,b)=>{const o={critical:0,high:1,medium:2};return (o[a.severity]??3)-(o[b.severity]??3);});
+  return anomalies;
+}
+
+// ===== UI =====
+function renderApp() {
+  document.getElementById("app").innerHTML = `
+    ${window.location.protocol==='file:'?'<div class="file-warning"><strong>Cannot open directly.</strong> Double-click <strong>OPEN_TOOL.bat</strong> in this folder instead. That launches a local server so the browser can reach USGS.</div>':''}
+    <div class="controls">
+      <label>Drainage:</label>
+      <select id="drSelect"><option value="all">All Drainages</option>${DRAINAGES.map(d=>`<option value="${d.name}">${d.name}</option>`).join("")}</select>
+      <button id="runBtn" onclick="runAnalysis()">Run Analysis</button>
+      <span id="lastRun" style="font-size:0.8em;color:#64748b;margin-left:auto"></span>
+    </div>
+    <div id="status" class="status-bar">Click "Run Analysis" to fetch live data from USGS and check for anomalies.</div>
+    <div id="summary" class="summary-cards hidden"></div>
+    <div id="results"></div>`;
+}
+
+function setStatus(msg, cls) {
+  const el=document.getElementById("status");
+  el.textContent=msg; el.className=`status-bar ${cls||""}`;
+}
+
+function renderResults(drainages, current, stats, anomalies) {
+  const today = getToday();
+  const summary = document.getElementById("summary");
+  const counts={critical:0,high:0,medium:0};
+  anomalies.forEach(a=>{if(counts[a.severity]!==undefined)counts[a.severity]++;});
+  const totalSites = drainages.reduce((a,d)=>a+d.sites.length,0);
+  const reporting = drainages.reduce((a,d)=>a+d.sites.filter(s=>current[s.id]).length,0);
+  summary.classList.remove("hidden");
+  summary.innerHTML = `
+    <div class="summary-card"><div class="number">${reporting}/${totalSites}</div><div class="label">Sites Reporting</div></div>
+    <div class="summary-card card-critical"><div class="number">${counts.critical}</div><div class="label">Critical</div></div>
+    <div class="summary-card card-high"><div class="number">${counts.high}</div><div class="label">High</div></div>
+    <div class="summary-card card-medium"><div class="number">${counts.medium}</div><div class="label">Medium</div></div>
+    <div class="summary-card card-ok"><div class="number">${reporting - new Set(anomalies.map(a=>a.siteId)).size}</div><div class="label">Sites OK</div></div>`;
+
+  let html = "";
+  window._anomalyList = [];
+  for (const dr of drainages) {
+    const da = anomalies.filter(a=>a.drainage===dr.name);
+    const badge = da.length ? `<span class="badge badge-alert">${da.length} flagged</span>` : `<span class="badge badge-ok">OK</span>`;
+    html += `<div class="drainage-section"><div class="drainage-header" onclick="this.nextElementSibling.classList.toggle('hidden')"><span>${dr.name} (${dr.type})</span>${badge}</div><div class="drainage-body">`;
+    html += `<table class="site-table"><thead><tr><th>Site Name</th><th>Site #</th><th style="text-align:right">Discharge</th><th style="text-align:right">Hist Discharge</th><th style="text-align:right">% Normal</th><th style="text-align:right">Temp</th><th style="text-align:right">Hist Temp</th><th style="text-align:right">Time</th></tr></thead><tbody>`;
+    for (const site of dr.sites) {
+      const sd = current[site.id];
+      const flagged = da.some(a=>a.siteId===site.id);
+      const cls = flagged?"flagged":"";
+      const q = sd?.["00060"]?.value;
+      const t = sd?.["00010"]?.value;
+      const hq = stats[site.id]?.["00060"]?.[today];
+      const ht = stats[site.id]?.["00010"]?.[today];
+      const qStr = q!=null ? `${q.toFixed(0)} cfs` : '<span class="val-na">N/A</span>';
+      const hqStr = hq ? `${hq.value.toFixed(0)} cfs` : '<span class="val-na">-</span>';
+      let pctStr = '<span class="val-na">-</span>';
+      if (q!=null && hq && hq.value>0) {
+        const pct = (q/hq.value)*100;
+        const cls2 = pct<60?"pct-low":pct>140?"pct-high":"pct-ok";
+        pctStr = `<span class="pct-normal ${cls2}">${pct.toFixed(0)}%</span>`;
+      }
+      const tStr = t!=null ? `${t.toFixed(1)}°C` : '<span class="val-na">N/A</span>';
+      const htStr = ht ? `${ht.value.toFixed(1)}°C` : '<span class="val-na">-</span>';
+      const time = sd?.["00060"]?.dateTime || sd?.["00010"]?.dateTime || "";
+      const timeStr = time ? new Date(time).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) : "";
+      html += `<tr class="${cls}" style="cursor:pointer" onclick="showSiteGraph('${site.id}','${site.name.replace(/'/g,"\\'")}','${dr.name}')"><td>${site.name}</td><td style="font-family:monospace;font-size:0.8em;color:#475569">${site.id}</td><td class="val-num">${qStr}</td><td class="val-num">${hqStr}</td><td class="val-num">${pctStr}</td><td class="val-num">${tStr}</td><td class="val-num">${htStr}</td><td class="val-num" style="font-size:0.8em;color:#64748b">${timeStr}</td></tr>`;
+    }
+    html += `</tbody></table>`;
+    if (da.length) {
+      html += `<div style="margin-top:10px"><div class="click-hint">Click an anomaly to view graph</div>`;
+      for (const a of da) {
+        const idx = window._anomalyList.length;
+        window._anomalyList.push(a);
+        html += `<div class="anomaly-item ${a.severity}" onclick="showAnomalyGraph(window._anomalyList[${idx}])"><div class="atitle"><span class="severity-tag ${a.severity}">${a.severity}</span>${a.type}</div><div><strong>${a.siteName} (${a.siteId})</strong> — ${a.detail}</div></div>`;
+      }
+      html += `</div>`;
+    }
+    html += `</div></div>`;
+  }
+  document.getElementById("results").innerHTML = html;
+}
+
+async function runAnalysis() {
+  const btn=document.getElementById("runBtn");
+  btn.disabled=true; btn.textContent="Loading...";
+  const sel = document.getElementById("drSelect").value;
+  const drainages = sel==="all" ? DRAINAGES : DRAINAGES.filter(d=>d.name===sel);
+  const allIds = drainages.flatMap(d=>d.sites.map(s=>s.id));
+
+  try {
+    setStatus(`Fetching current data for ${allIds.length} sites...`,"loading");
+    const current = await fetchIV(allIds);
+    const reporting = Object.keys(current).length;
+    setStatus(`Got ${reporting}/${allIds.length} sites. Fetching historical statistics...`,"loading");
+    const stats = await fetchStats(allIds);
+    setStatus("Running anomaly detection...","loading");
+    const anomalies = detectAnomalies(current, stats, drainages);
+    lastCurrent = current; lastStats = stats; lastDrainages = drainages;
+    renderResults(drainages, current, stats, anomalies);
+    document.getElementById("lastRun").textContent = `Last run: ${new Date().toLocaleString()}`;
+    if (!anomalies.length) setStatus(`All ${reporting} reporting sites within normal ranges.`,"success");
+    else {
+      const c=anomalies.filter(a=>a.severity==="critical").length;
+      setStatus(`${anomalies.length} anomalies detected${c?` (${c} critical)`:""}. ${reporting} sites checked.`, c?"error":"success");
+    }
+  } catch(e) {
+    setStatus(`Error: ${e.message}`,"error");
+    console.error(e);
+  }
+  btn.disabled=false; btn.textContent="Run Analysis";
+}
+
+renderApp();
+
+// ===== GRAPHING =====
+// Store last analysis results for graphing
+let lastCurrent = {}, lastStats = {}, lastDrainages = [];
+
+// Fetch 7-day daily values for a site
+async function fetchDV(siteId, paramCd) {
+  const url = `https://waterservices.usgs.gov/nwis/dv/?format=json&sites=${siteId}&parameterCd=${paramCd}&period=P30D&siteStatus=active`;
+  try {
+    const resp = await fetch(url);
+    if (!resp.ok) return [];
+    const data = await resp.json();
+    const ts = data?.value?.timeSeries?.[0];
+    if (!ts) return [];
+    return ts.values[0].value
+      .filter(v => v.value && v.value !== "-999999")
+      .map(v => ({date: v.dateTime.split("T")[0], value: parseFloat(v.value)}));
+  } catch(e) { return []; }
+}
+
+// Build historical comparison data (mean for each day-of-year over the last 30 days)
+function getHistoricalLine(stats, siteId, paramCd) {
+  const siteStats = stats[siteId]?.[paramCd];
+  if (!siteStats) return [];
+  const points = [];
+  const now = new Date();
+  for (let d = -30; d <= 0; d++) {
+    const date = new Date(now);
+    date.setDate(date.getDate() + d);
+    const key = `${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
+    if (siteStats[key]) {
+      points.push({date: date.toISOString().split("T")[0], value: siteStats[key].value});
+    }
+  }
+  return points;
+}
+
+async function showAnomalyGraph(anomaly) {
+  // Determine what to graph
+  const paramCd = anomaly.type.toLowerCase().includes("temp") ? "00010" : "00060";
+  const paramLabel = paramCd === "00010" ? "Temperature (°C)" : "Discharge (cfs)";
+
+  // Show loading modal
+  const modal = document.createElement("div");
+  modal.className = "graph-modal";
+  modal.innerHTML = `<div class="graph-modal-content">
+    <button class="graph-modal-close" onclick="this.closest('.graph-modal').remove()">&times;</button>
+    <div class="graph-title">${anomaly.siteName}</div>
+    <div class="graph-subtitle">Loading data...</div>
+    <div class="graph-container"><canvas id="anomalyChart"></canvas></div>
+  </div>`;
+  document.body.appendChild(modal);
+  modal.addEventListener("click", (e) => { if (e.target === modal) modal.remove(); });
+
+  // Fetch recent daily values
+  const dvData = await fetchDV(anomaly.siteId, paramCd);
+  const histLine = getHistoricalLine(lastStats, anomaly.siteId, paramCd);
+
+  // For upstream/downstream anomalies, also fetch the comparison site
+  let compDV = [];
+  let compHist = [];
+  let compName = "";
+  if (anomaly.type.includes("upstream/downstream") || anomaly.type.includes("relationship")) {
+    // Find the upstream site
+    for (const dr of lastDrainages) {
+      const idx = dr.sites.findIndex(s => s.id === anomaly.siteId);
+      if (idx > 0) {
+        const upSite = dr.sites[idx - 1];
+        compName = upSite.name;
+        compDV = await fetchDV(upSite.id, paramCd);
+        compHist = getHistoricalLine(lastStats, upSite.id, paramCd);
+        break;
+      }
+    }
+  }
+
+  // Update subtitle
+  modal.querySelector(".graph-subtitle").textContent =
+    `${anomaly.drainage} | ${anomaly.type} | Last 30 days vs historical average`;
+
+  // Build chart
+  const ctx = document.getElementById("anomalyChart").getContext("2d");
+  const datasets = [];
+
+  if (dvData.length) {
+    datasets.push({
+      label: `${anomaly.siteName} (actual)`,
+      data: dvData.map(d => ({x: d.date, y: d.value})),
+      borderColor: "#2563eb",
+      backgroundColor: "rgba(37,99,235,0.1)",
+      borderWidth: 2,
+      fill: false,
+      tension: 0.3
+    });
+  }
+
+  if (histLine.length) {
+    datasets.push({
+      label: `${anomaly.siteName} (historical avg)`,
+      data: histLine.map(d => ({x: d.date, y: d.value})),
+      borderColor: "#2563eb",
+      borderDash: [6, 4],
+      borderWidth: 1.5,
+      fill: false,
+      pointRadius: 0,
+      tension: 0.3
+    });
+  }
+
+  if (compDV.length) {
+    datasets.push({
+      label: `${compName} (actual)`,
+      data: compDV.map(d => ({x: d.date, y: d.value})),
+      borderColor: "#dc2626",
+      backgroundColor: "rgba(220,38,38,0.1)",
+      borderWidth: 2,
+      fill: false,
+      tension: 0.3
+    });
+  }
+
+  if (compHist.length) {
+    datasets.push({
+      label: `${compName} (historical avg)`,
+      data: compHist.map(d => ({x: d.date, y: d.value})),
+      borderColor: "#dc2626",
+      borderDash: [6, 4],
+      borderWidth: 1.5,
+      fill: false,
+      pointRadius: 0,
+      tension: 0.3
+    });
+  }
+
+  new Chart(ctx, {
+    type: "line",
+    data: { datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: "index", intersect: false },
+      plugins: {
+        legend: { position: "bottom", labels: { font: {size: 11} } },
+        tooltip: {
+          callbacks: {
+            label: (ctx) => `${ctx.dataset.label}: ${ctx.parsed.y.toFixed(paramCd==="00010"?1:0)} ${paramCd==="00010"?"°C":"cfs"}`
+          }
+        }
+      },
+      scales: {
+        x: {
+          type: "time",
+          time: { unit: "day", displayFormats: { day: "MMM d" } },
+          title: { display: true, text: "Date" }
+        },
+        y: {
+          title: { display: true, text: paramLabel },
+          beginAtZero: paramCd === "00060"
+        }
+      }
+    }
+  });
+}
+
+// Override anomaly rendering to make items clickable
+
+async function showSiteGraph(siteId, siteName, drainageName) {
+  // Show both discharge and temperature for any clicked site
+  const modal = document.createElement("div");
+  modal.className = "graph-modal";
+  modal.innerHTML = `<div class="graph-modal-content">
+    <button class="graph-modal-close" onclick="this.closest('.graph-modal').remove()">&times;</button>
+    <div class="graph-title">${siteName}</div>
+    <div class="graph-subtitle">${drainageName} | Last 30 days vs historical average | Loading...</div>
+    <div class="graph-container"><canvas id="siteChartQ"></canvas></div>
+    <div class="graph-container"><canvas id="siteChartT"></canvas></div>
+  </div>`;
+  document.body.appendChild(modal);
+  modal.addEventListener("click", (e) => { if (e.target === modal) modal.remove(); });
+
+  // Fetch discharge
+  const dvQ = await fetchDV(siteId, "00060");
+  const histQ = getHistoricalLine(lastStats, siteId, "00060");
+
+  // Fetch temperature
+  const dvT = await fetchDV(siteId, "00010");
+  const histT = getHistoricalLine(lastStats, siteId, "00010");
+
+  modal.querySelector(".graph-subtitle").textContent =
+    `${drainageName} | Last 30 days vs historical average`;
+
+  // Discharge chart
+  if (dvQ.length || histQ.length) {
+    new Chart(document.getElementById("siteChartQ").getContext("2d"), {
+      type: "line",
+      data: { datasets: [
+        ...(dvQ.length ? [{label:"Discharge (actual)", data:dvQ.map(d=>({x:d.date,y:d.value})), borderColor:"#2563eb", borderWidth:2, fill:false, tension:0.3}] : []),
+        ...(histQ.length ? [{label:"Discharge (historical avg)", data:histQ.map(d=>({x:d.date,y:d.value})), borderColor:"#2563eb", borderDash:[6,4], borderWidth:1.5, fill:false, pointRadius:0, tension:0.3}] : [])
+      ]},
+      options: { responsive:true, maintainAspectRatio:false, plugins:{legend:{position:"bottom"}},
+        scales:{ x:{type:"time",time:{unit:"day",displayFormats:{day:"MMM d"}}}, y:{title:{display:true,text:"Discharge (cfs)"},beginAtZero:true} } }
+    });
+  } else {
+    document.getElementById("siteChartQ").parentElement.innerHTML = '<p style="color:#94a3b8;text-align:center;padding:20px">No discharge data available</p>';
+  }
+
+  // Temperature chart
+  if (dvT.length || histT.length) {
+    new Chart(document.getElementById("siteChartT").getContext("2d"), {
+      type: "line",
+      data: { datasets: [
+        ...(dvT.length ? [{label:"Temperature (actual)", data:dvT.map(d=>({x:d.date,y:d.value})), borderColor:"#dc2626", borderWidth:2, fill:false, tension:0.3}] : []),
+        ...(histT.length ? [{label:"Temperature (historical avg)", data:histT.map(d=>({x:d.date,y:d.value})), borderColor:"#dc2626", borderDash:[6,4], borderWidth:1.5, fill:false, pointRadius:0, tension:0.3}] : [])
+      ]},
+      options: { responsive:true, maintainAspectRatio:false, plugins:{legend:{position:"bottom"}},
+        scales:{ x:{type:"time",time:{unit:"day",displayFormats:{day:"MMM d"}}}, y:{title:{display:true,text:"Temperature (°C)"}} } }
+    });
+  } else {
+    document.getElementById("siteChartT").parentElement.innerHTML = '<p style="color:#94a3b8;text-align:center;padding:20px">No temperature data available</p>';
+  }
+}
+</script>
+</body>
+</html>
