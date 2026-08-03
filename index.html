@@ -631,6 +631,15 @@ const THRESHOLDS = {
   pctNormalOutlier: 30    // flag if a tributary pct-of-normal differs 30%+ from nearby tributaries
 };
 
+const OFFICES = {
+  "Western MT":["06012500","06015460","06016000","06017000","06018500","06019500","06020600","06023000","06023100","06024450","06024540","06024580","06025250","06025500","06026210","06026420","12301250","12301933","12302055","12304500","12323242","12323250","12323600","12323670","12323700","12323710","12323720","12323750","12323760","12323770","12323800","12323840","12323850","12324200","12324400","12324590","12324680","12325500","12329500","12330000","12331500","12331800","12332000","12334510","12334550","12335100","12335500","12338300","12340000","12340500","12342500","12344000","12345510","12350250","12352500","12353000","12353650","12354000","12354500","12354700","12355000","12355500","12358500","12359800","12362500","12363000","12365700","12366000","12366500","12370000","12372000","12377150","12381400","12388700","12389000","12389500","12390700"],
+  "Central MT":["06006000","06015430","06026500","06027600","06031950","06033000","06034700","06035000","06036650","06036805","06036905","06037100","06037500","06038500","06038550","06038800","06040000","06040050","06040800","06041000","06041500","06043120","06043300","06043500","06048650","06050000","06052500","06053050","06054500","06056300","06061500","06062500","06063000","06065500","06066500","06071300","06071400","06073500","06073600","06074000","06076690","06077200","06077500","06078200","06078500","06079000","06080900","06082200","06085800","06088500","06089000","06090300","06090500","06090550","06090800","06091700","06092020","06093200","06094900","06097000","06098120","06098800","06099000","06099500","06101200","06101500","06101630","06102050","06102500","06108800","06109500","06114700","06137570","06137575","06138580","06139500","06139800","06139850","06139900","06192978"],
+  "Eastern MT":["06110020","06111800","06115200","06119600","06120500","06120900","06123030","06125600","06126500","06127500","06130000","06130500","06131200","06153800","06154100","06154390","06154400","06154410","06154430","06155030","06155500","06164510","06167500","06172300","06172310","06174500","06175100","06175510","06177000","06177100","06177500","06177825","06179200","06181000","06183450","06185110","06185500","06192500","06195600","06195750","06195950","06197800","06200000","06204050","06204070","06204170","06205000","06207500","06207800","06208500","06209500","06210950","06211000","06211500","06214500","06217300","06287000","06287800","06288400","06294500","06295000","06296115","06307520","06307720","06309000","06309040","06309080","06324995","06325700","06327500","06328495","06329500"],
+  "Eastern WY":["06036940","06186500","06187915","06188000","06190540","06191000","06191500","06274300","06278300","06279500","06279940","06280300","06281000","06285100","06289000","06290500","06291500","06293500","06294000","06295113","06295220","06306000","06306300","06307500","06307616","06307662","06307830","06308500","06309200","06313400","06317000","06318500","06324500","06326500","06426500","06427850","06454100","06620000","06622700","06623800","06625000","06630000","06630465","06632400","06634060","06634620","06635000","06646000","06652000","06657000","06660000","06670500","09253470","09255200","09257000","09258050","09258980","09259050","09259700"],
+  "North MT":["05014500","05017500","05020500","06133000","06133500","06134000","06134500","06135000","06140500","06142400","06145500","06146980","06149500","06151500","06164000","06169500","06178000","06178500"],
+  "Western WY":["06218500","06220800","06221400","06224000","06227600","06228000","06228350","06235500","06236100","06253000","06258000","06638090","09188500","09189020","09191150","09192750","09193700","09195000","09195600","09196000","09196500","09201500","09202000","09202700","09203500","09204500","09205000","09205300","09209400","09210500","09211200","09213500","09216050","09216550","09216560","09216950","09217000","09217010","09217900","09218500","09218850","09218895","09219200","09220000","09221505","09222100","09222400","09223000","09224000","09224700","09228000","09229500","10016900","13010065","13011000","13011500","13011820","13011900","13013650","13014300","13014500","13015000","13016305","13016450","13018300","13018350","13018750","13019500","13022500","13025500"]
+};
+
 // ===== USGS API =====
 const IV_URL = "https://waterservices.usgs.gov/nwis/iv/";
 const STAT_URL = "https://waterservices.usgs.gov/nwis/stat/";
@@ -890,17 +899,111 @@ function detectAnomalies(current, stats, drainages) {
   return anomalies;
 }
 
+// ===== DIURNAL PATTERN ANOMALY DETECTION =====
+// Analyzes 7-day IV data for sudden changes in daily range/variability
+// Flags sites where diurnal patterns become erratic (possible affected data)
+async function detectDiurnalAnomalies(siteIds, drainages) {
+  const anomalies = [];
+  // Only check sites that have temperature data (most common diurnal issue)
+  // Fetch IV data for analysis - do in small batches to not overwhelm
+  const batchSize = 10;
+  for (let i = 0; i < siteIds.length; i += batchSize) {
+    const batch = siteIds.slice(i, i + batchSize);
+    try {
+      const url = `${IV_URL}?format=json&sites=${batch.join(",")}&parameterCd=00010&period=P7D&siteStatus=active`;
+      const resp = await fetch(url);
+      if (!resp.ok) continue;
+      const data = await resp.json();
+      for (const ts of (data?.value?.timeSeries || [])) {
+        try {
+          const sid = ts.sourceInfo.siteCode[0].value;
+          const siteName = ts.sourceInfo.siteName;
+          const vals = ts.values?.[0]?.value || [];
+          if (vals.length < 96) continue; // need at least 1 day of data
+
+          // Group values by date
+          const byDate = {};
+          for (const v of vals) {
+            if (!v.value || v.value === "-999999") continue;
+            const date = v.dateTime.split("T")[0];
+            if (!byDate[date]) byDate[date] = [];
+            byDate[date].push(parseFloat(v.value));
+          }
+
+          const dates = Object.keys(byDate).sort();
+          if (dates.length < 5) continue; // need at least 5 days
+
+          // Calculate daily range (max-min) for each day
+          const dailyRanges = dates.map(d => {
+            const dayVals = byDate[d];
+            return {date: d, range: Math.max(...dayVals) - Math.min(...dayVals), count: dayVals.length};
+          }).filter(d => d.count >= 20); // need ~5 hours of data minimum
+
+          if (dailyRanges.length < 5) continue;
+
+          // Compare first half vs second half ranges
+          const mid = Math.floor(dailyRanges.length / 2);
+          const firstHalf = dailyRanges.slice(0, mid);
+          const secondHalf = dailyRanges.slice(mid);
+
+          const avgFirst = firstHalf.reduce((a,b) => a + b.range, 0) / firstHalf.length;
+          const avgSecond = secondHalf.reduce((a,b) => a + b.range, 0) / secondHalf.length;
+
+          // Flag if daily range increased by 50%+ OR if it more than doubled
+          if (avgFirst > 0.5 && avgSecond > avgFirst * 1.5) {
+            const increase = ((avgSecond - avgFirst) / avgFirst) * 100;
+            const sev = avgSecond > avgFirst * 2.5 ? "critical" : avgSecond > avgFirst * 2 ? "high" : "medium";
+            // Find which drainage this site belongs to
+            let drainageName = "Unknown";
+            for (const dr of drainages) {
+              if (dr.sites.some(s => s.id === sid)) { drainageName = dr.name; break; }
+            }
+            anomalies.push({
+              siteId: sid, siteName, drainage: drainageName, severity: sev,
+              type: "Possibly affected data - erratic diurnal pattern",
+              detail: `Temperature daily range increased from avg ${avgFirst.toFixed(1)}°C (${firstHalf[0].date} to ${firstHalf[firstHalf.length-1].date}) to ${avgSecond.toFixed(1)}°C (${secondHalf[0].date} to ${secondHalf[secondHalf.length-1].date}). ${increase.toFixed(0)}% increase in variability.`
+            });
+          }
+
+          // Also check for sudden single-day spikes in range
+          if (dailyRanges.length >= 3) {
+            const baseline = dailyRanges.slice(0, -1).reduce((a,b) => a + b.range, 0) / (dailyRanges.length - 1);
+            const lastDay = dailyRanges[dailyRanges.length - 1];
+            if (baseline > 0.5 && lastDay.range > baseline * 2.5) {
+              let drainageName = "Unknown";
+              for (const dr of drainages) {
+                if (dr.sites.some(s => s.id === sid)) { drainageName = dr.name; break; }
+              }
+              // Avoid duplicate if already flagged above
+              if (!anomalies.some(a => a.siteId === sid && a.type.includes("erratic"))) {
+                anomalies.push({
+                  siteId: sid, siteName, drainage: drainageName, severity: "medium",
+                  type: "Possibly affected data - unusual daily range",
+                  detail: `Temperature range on ${lastDay.date} was ${lastDay.range.toFixed(1)}°C vs baseline average of ${baseline.toFixed(1)}°C (${((lastDay.range/baseline)*100).toFixed(0)}% of normal range).`
+                });
+              }
+            }
+          }
+        } catch(e) { continue; }
+      }
+    } catch(e) { continue; }
+  }
+  return anomalies;
+}
+
 // ===== UI =====
 function renderApp() {
   document.getElementById("app").innerHTML = `
     ${window.location.protocol==='file:'?'<div class="file-warning"><strong>Cannot open directly.</strong> Double-click <strong>OPEN_TOOL.bat</strong> in this folder instead. That launches a local server so the browser can reach USGS.</div>':''}
     <div class="controls">
+      <label>Office:</label>
+      <select id="officeSelect" onchange="updateDrainageFilter()"><option value="all">All Offices</option>${Object.keys(OFFICES).map(o=>`<option value="${o}">${o}</option>`).join("")}</select>
       <label>Drainage:</label>
       <select id="drSelect"><option value="all">All Drainages</option>${DRAINAGES.map(d=>`<option value="${d.name}">${d.name}</option>`).join("")}</select>
       <button id="runBtn" onclick="runAnalysis()">Run Analysis</button>
       <span id="lastRun" style="font-size:0.8em;color:#64748b;margin-left:auto"></span>
     </div>
-    <div id="status" class="status-bar">Click "Run Analysis" to fetch live data from USGS and check for anomalies.</div>
+    <div id="status" class="status-bar">Select an office or drainage, then click "Run Analysis" to fetch live data from USGS.</div>
     <div id="summary" class="summary-cards hidden"></div>
     <div id="results"></div>`;
 }
@@ -979,9 +1082,7 @@ function renderResults(drainages, current, dailyMeans, stats, anomalies) {
 async function runAnalysis() {
   const btn=document.getElementById("runBtn");
   btn.disabled=true; btn.textContent="Loading...";
-  const sel = document.getElementById("drSelect").value;
-  const drainages = sel==="all" ? DRAINAGES : DRAINAGES.filter(d=>d.name===sel);
-  const allIds = drainages.flatMap(d=>d.sites.map(s=>s.id));
+  const {siteIds: allIds, drainages} = getFilteredSites();
 
   try {
     setStatus(`Fetching current data for ${allIds.length} sites...`,"loading");
@@ -994,6 +1095,10 @@ async function runAnalysis() {
     const stats = await fetchStats(allIds);
     setStatus("Running anomaly detection (daily mean vs historical mean)...","loading");
     const anomalies = detectAnomalies(dailyMeans, stats, drainages);
+    setStatus("Checking for erratic diurnal patterns (temperature IV data)...","loading");
+    const diurnalAnomalies = await detectDiurnalAnomalies(allIds, drainages);
+    anomalies.push(...diurnalAnomalies);
+    anomalies.sort((a,b)=>{const o={critical:0,high:1,medium:2};return (o[a.severity]??3)-(o[b.severity]??3);});
     lastCurrent = current; lastStats = stats; lastDrainages = drainages;
     renderResults(drainages, current, dailyMeans, stats, anomalies);
     document.getElementById("lastRun").textContent = `Last run: ${new Date().toLocaleString()}`;
@@ -1007,6 +1112,48 @@ async function runAnalysis() {
     console.error(e);
   }
   btn.disabled=false; btn.textContent="Run Analysis";
+}
+
+// Filter drainages shown based on selected office
+function updateDrainageFilter() {
+  const office = document.getElementById("officeSelect").value;
+  const drSelect = document.getElementById("drSelect");
+  drSelect.innerHTML = '<option value="all">All Drainages</option>';
+  if (office === "all") {
+    DRAINAGES.forEach(d => {
+      drSelect.innerHTML += `<option value="${d.name}">${d.name}</option>`;
+    });
+  } else {
+    const officeSites = new Set(OFFICES[office]);
+    DRAINAGES.forEach(d => {
+      // Show drainage if it has any sites in this office
+      if (d.sites.some(s => officeSites.has(s.id))) {
+        drSelect.innerHTML += `<option value="${d.name}">${d.name}</option>`;
+      }
+    });
+  }
+}
+
+// Get filtered site IDs based on office + drainage selection
+function getFilteredSites() {
+  const office = document.getElementById("officeSelect").value;
+  const drainage = document.getElementById("drSelect").value;
+
+  let drainages = drainage === "all" ? DRAINAGES : DRAINAGES.filter(d => d.name === drainage);
+  let siteIds;
+
+  if (office === "all") {
+    siteIds = drainages.flatMap(d => d.sites.map(s => s.id));
+  } else {
+    const officeSites = new Set(OFFICES[office]);
+    // Include all sites in matching drainages (for comparison context)
+    // but primarily focus on the office's sites
+    const matchingDrainages = drainages.filter(d => d.sites.some(s => officeSites.has(s.id)));
+    siteIds = matchingDrainages.flatMap(d => d.sites.map(s => s.id));
+    drainages = matchingDrainages;
+  }
+
+  return { siteIds, drainages };
 }
 
 renderApp();
