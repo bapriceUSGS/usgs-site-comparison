@@ -6,6 +6,8 @@
     <title>USGS MT-WY Site Comparison Tool</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
@@ -153,6 +155,22 @@
         .anomaly-item { cursor: pointer; }
         .anomaly-item:hover { opacity: 0.85; }
         .click-hint { font-size: 0.75em; color: #94a3b8; font-style: italic; }
+        #mapContainer {
+            background: white; border-radius: 8px; margin-bottom: 15px;
+            overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        #mapContainer .map-header {
+            background: #1e293b; color: white; padding: 12px 20px;
+            font-weight: 600; cursor: pointer;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        #mapContainer .map-header:hover { background: #334155; }
+        #siteMap { height: 450px; width: 100%; }
+        .map-legend {
+            background: white; padding: 8px 12px; border-radius: 5px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.3); font-size: 0.8em; line-height: 1.8;
+        }
+        .map-legend i { width: 12px; height: 12px; display: inline-block; border-radius: 50%; margin-right: 5px; vertical-align: middle; }
 </style>
 </head>
 <body>
@@ -992,6 +1010,12 @@ function renderApp() {
     </div>
     <div id="status" class="status-bar">Select an office or drainage, then click "Run Analysis" to fetch live data from USGS.</div>
     <div id="summary" class="summary-cards hidden"></div>
+    <div id="mapContainer" class="hidden">
+      <div class="map-header" onclick="document.getElementById('siteMap').style.display=document.getElementById('siteMap').style.display==='none'?'block':'none'">
+        <span>Site Map</span><span style="font-size:0.8em;opacity:0.7">click to expand/collapse</span>
+      </div>
+      <div id="siteMap"></div>
+    </div>
     <div id="results"></div>`;
 }
 
@@ -1089,6 +1113,10 @@ async function runAnalysis() {
     anomalies.sort((a,b)=>{const o={critical:0,high:1,medium:2};return (o[a.severity]??3)-(o[b.severity]??3);});
     lastCurrent = current; lastStats = stats; lastDrainages = drainages;
     renderResults(drainages, current, dailyMeans, stats, anomalies);
+    // Build map
+    setStatus("Loading site map...","loading");
+    const locations = await fetchSiteLocations(allIds);
+    buildMap(locations, anomalies);
     document.getElementById("lastRun").textContent = `Last run: ${new Date().toLocaleString()}`;
     if (!anomalies.length) setStatus(`All ${reporting} reporting sites within normal ranges.`,"success");
     else {
@@ -1100,6 +1128,110 @@ async function runAnalysis() {
     console.error(e);
   }
   btn.disabled=false; btn.textContent="Run Analysis";
+}
+
+// ===== MAP =====
+let siteMap = null;
+
+async function fetchSiteLocations(siteIds) {
+  const locations = {};
+  const batchSize = 50;
+  for (let i = 0; i < siteIds.length; i += batchSize) {
+    const batch = siteIds.slice(i, i + batchSize);
+    try {
+      const url = `https://waterservices.usgs.gov/nwis/site/?format=rdb&sites=${batch.join(",")}&siteOutput=expanded&siteStatus=all`;
+      const resp = await fetch(url);
+      if (!resp.ok) continue;
+      const text = await resp.text();
+      const lines = text.split("\n");
+      let headers = null, skipNext = true;
+      for (const line of lines) {
+        if (line.startsWith("#")) continue;
+        if (!headers) { headers = line.split("\t"); skipNext = true; continue; }
+        if (skipNext) { skipNext = false; continue; }
+        if (!line.trim()) continue;
+        const f = line.split("\t");
+        const si = headers.indexOf("site_no");
+        const lati = headers.indexOf("dec_lat_va");
+        const loni = headers.indexOf("dec_long_va");
+        const nmi = headers.indexOf("station_nm");
+        if (si<0 || lati<0 || loni<0) continue;
+        const sid = f[si]?.trim();
+        const lat = parseFloat(f[lati]);
+        const lon = parseFloat(f[loni]);
+        const name = f[nmi]?.trim() || sid;
+        if (sid && !isNaN(lat) && !isNaN(lon)) {
+          locations[sid] = {lat, lon, name};
+        }
+      }
+    } catch(e) { continue; }
+  }
+  return locations;
+}
+
+function buildMap(locations, anomalies) {
+  const mapEl = document.getElementById("mapContainer");
+  mapEl.classList.remove("hidden");
+
+  // Determine severity color for each site
+  const siteColors = {};
+  for (const a of anomalies) {
+    const current = siteColors[a.siteId];
+    const sevOrder = {critical:0, high:1, medium:2};
+    if (!current || sevOrder[a.severity] < sevOrder[current]) {
+      siteColors[a.siteId] = a.severity;
+    }
+  }
+
+  const colorMap = {
+    critical: "#dc2626",
+    high: "#d97706",
+    medium: "#0891b2",
+    ok: "#059669"
+  };
+
+  // Initialize or reset map
+  if (siteMap) { siteMap.remove(); siteMap = null; }
+  siteMap = L.map("siteMap").setView([46.5, -109.5], 6);
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    attribution: '&copy; OpenStreetMap contributors',
+    maxZoom: 15
+  }).addTo(siteMap);
+
+  // Add markers
+  const markers = [];
+  for (const [sid, loc] of Object.entries(locations)) {
+    const severity = siteColors[sid] || "ok";
+    const color = colorMap[severity];
+    const marker = L.circleMarker([loc.lat, loc.lon], {
+      radius: severity === "ok" ? 5 : 8,
+      fillColor: color,
+      color: "#333",
+      weight: 1,
+      fillOpacity: 0.8
+    }).addTo(siteMap);
+    marker.bindPopup(`<b>${loc.name}</b><br>Site: ${sid}<br>Status: <span style="color:${color};font-weight:bold">${severity.toUpperCase()}</span>`);
+    markers.push(marker);
+  }
+
+  // Fit bounds to markers
+  if (markers.length > 0) {
+    const group = L.featureGroup(markers);
+    siteMap.fitBounds(group.getBounds().pad(0.1));
+  }
+
+  // Add legend
+  const legend = L.control({position: "bottomright"});
+  legend.onAdd = function() {
+    const div = L.DomUtil.create("div", "map-legend");
+    div.innerHTML = `
+      <i style="background:#dc2626"></i> Critical<br>
+      <i style="background:#d97706"></i> High<br>
+      <i style="background:#0891b2"></i> Medium<br>
+      <i style="background:#059669"></i> OK`;
+    return div;
+  };
+  legend.addTo(siteMap);
 }
 
 // Filter drainages shown based on selected office
