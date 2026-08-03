@@ -673,7 +673,7 @@ const STAT_URL = "https://waterservices.usgs.gov/nwis/stat/";
 async function fetchIV(siteIds) {
   const url = `${IV_URL}?format=json&sites=${siteIds.join(",")}&parameterCd=00060,00010&siteStatus=active`;
   const resp = await fetch(url);
-  if (!resp.ok) throw new Error(`USGS returned HTTP ${resp.status}. If you opened this file directly, use OPEN_TOOL.bat instead.`);
+  if (!resp.ok) throw new Error(`USGS returned HTTP ${resp.status}. Check your internet connection or try again in a moment.`);
   const data = await resp.json();
   const results = {};
   for (const ts of (data?.value?.timeSeries || [])) {
