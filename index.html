@@ -184,7 +184,7 @@
 <script>
 // ===== CONFIGURATION =====
 const DRAINAGES = [
-  { name:"Red Rock/Beaverhead", type:"mainstem", sites:[
+  { name:"Red Rock/Beaverhead", type:"tributaries", sites:[
     {id:"06006000",name:"Red Rock Cr ab Lakes, nr Lakeview, MT",order:1},
     {id:"06012500",name:"Red Rock R bl Lima Reservoir nr Monida MT",order:2},
     {id:"06015460",name:"Farlin Creek near Polaris, MT",order:4},
@@ -205,14 +205,14 @@ const DRAINAGES = [
     {id:"06026210",name:"Big Hole River near Glen MT",order:6},
     {id:"06026420",name:"Big Hole R bl Hamilton Ditch nr Twin Bridges, MT",order:7}
   ]},
-  { name:"Jefferson River", type:"mainstem", sites:[
+  { name:"Jefferson River", type:"tributaries", sites:[
     {id:"06026500",name:"Jefferson River near Twin Bridges, MT",order:1},
     {id:"06027600",name:"Jefferson River at Parsons Bdg nr Silver Star, MT",order:2},
     {id:"06033000",name:"Boulder River near Boulder, MT",order:4},
     {id:"06035000",name:"Willow Creek near Harrison MT",order:6},
     {id:"06036650",name:"Jefferson River near Three Forks MT",order:7}
   ]},
-  { name:"Madison River", type:"mainstem", sites:[
+  { name:"Madison River", type:"tributaries", sites:[
     {id:"06036805",name:"Firehole River at Old Faithful, YNP",order:1},
     {id:"06036905",name:"Firehole River near West Yellowstone MT",order:2},
     {id:"06036940",name:"Tantalus Creek at Norris Junction, YNP",order:3},
@@ -226,7 +226,7 @@ const DRAINAGES = [
     {id:"06041000",name:"Madison River bl Ennis Lake nr McAllister MT",order:12},
     {id:"06041500",name:"Madison River near Norris MT",order:13}
   ]},
-  { name:"Gallatin River", type:"mainstem", sites:[
+  { name:"Gallatin River", type:"tributaries", sites:[
     {id:"06043120",name:"Gallatin River above Deer Creek, near Big Sky, MT",order:1},
     {id:"06043500",name:"Gallatin River near Gallatin Gateway, MT",order:3},
     {id:"06048650",name:"E Gallatin R ab Water Reclamation Fa nr Bozeman MT",order:4},
@@ -239,7 +239,7 @@ const DRAINAGES = [
     {id:"06063000",name:"Tenmile Creek near Helena MT",order:3},
     {id:"06073500",name:"Dearborn River near Craig MT",order:6},
   ]},
-  { name:"Missouri River - Toston to Great Falls", type:"mainstem", sites:[
+  { name:"Missouri River - Toston to Great Falls", type:"tributaries", sites:[
     {id:"06054500",name:"Missouri River at Toston MT",order:2},
     {id:"06065500",name:"Missouri River bl Hauser Dam near Helena MT",order:4},
     {id:"06066500",name:"Missouri River bl Holter Dam nr Wolf Cr MT",order:5},
@@ -338,7 +338,7 @@ const DRAINAGES = [
   ,
     {id:"06138580",name:"Big Sandy Cr ab Spring Coulee, nr Laredo, MT",order:44}
   ]},
-  { name:"Missouri River - below Fort Peck", type:"mainstem", sites:[
+  { name:"Missouri River - below Fort Peck", type:"tributaries", sites:[
     {id:"06175100",name:"Missouri R at W Frazer Pump Plant nr Frazer MT",order:1},
     {id:"06175510",name:"Missouri R at E Frazer Pump Plant nr Frazer MT",order:2},
     {id:"06177000",name:"Missouri River near Wolf Point MT",order:3},
@@ -354,7 +354,7 @@ const DRAINAGES = [
     {id:"06183450",name:"Big Muddy Creek near Antelope MT",order:5},
     {id:"06185110",name:"Big Muddy Creek nr mouth nr Culbertson MT",order:6}
   ]},
-  { name:"Yellowstone River - YNP to Billings", type:"mainstem", sites:[
+  { name:"Yellowstone River - YNP to Billings", type:"tributaries", sites:[
     {id:"06186500",name:"Yellowstone River at Yellowstone Lk Outlet YNP",order:1},
     {id:"06187915",name:"Soda Butte Cr at Park Bndry at Silver Gate",order:2},
     {id:"06188000",name:"Lamar River nr Tower Ranger Station YNP",order:3},
@@ -375,7 +375,7 @@ const DRAINAGES = [
     {id:"06209500",name:"Rock Creek near Red Lodge MT",order:21},
     {id:"06214500",name:"Yellowstone River at Billings MT",order:25}
   ]},
-  { name:"Bighorn River", type:"tributaries", sites:[
+  { name:"Bighorn River", type:"mainstem", sites:[
     {id:"06274300",name:"BIGHORN RIVER AT BASIN, WY",order:1},
     {id:"06278300",name:"Shell Creek above Shell Reservoir, WY",order:2},
     {id:"06279500",name:"BIGHORN RIVER AT KANE, WY",order:3},
@@ -405,7 +405,7 @@ const DRAINAGES = [
     {id:"06295113",name:"Rosebud C at Reservation Bndry nr Kirby MT",order:14},
     {id:"06295220",name:"Rosebud C Bel Lame Deer C nr Lame Deer MT",order:15}
   ]},
-  { name:"Tongue River", type:"tributaries", sites:[
+  { name:"Tongue River", type:"mainstem", sites:[
     {id:"06306000",name:"Tongue River near Acme, WY",order:1},
     {id:"06306300",name:"Tongue River at State Line nr Decker MT",order:2},
     {id:"06307500",name:"Tongue River at Tongue R Dam nr Decker MT",order:3},
@@ -414,7 +414,7 @@ const DRAINAGES = [
     {id:"06307830",name:"Tongue R bl Brandenberg bridge nr Ashland MT",order:6},
     {id:"06308500",name:"Tongue River at Miles City, MT",order:7}
   ]},
-  { name:"Powder River", type:"tributaries", sites:[
+  { name:"Powder River", type:"mainstem", sites:[
     {id:"06309200",name:"MIDDLE FORK POWDER RIVER NEAR BARNUM, WY",order:1},
     {id:"06313400",name:"SALT CREEK NEAR SUSSEX, WY",order:2},
     {id:"06317000",name:"POWDER RIVER AT ARVADA, WY",order:3},
@@ -422,7 +422,7 @@ const DRAINAGES = [
     {id:"06324500",name:"Powder River at Moorhead MT",order:5},
     {id:"06326500",name:"Powder River near Locate MT",order:6}
   ]},
-  { name:"Kootenai River", type:"mainstem", sites:[
+  { name:"Kootenai River", type:"tributaries", sites:[
     {id:"12301250",name:"Tobacco River at Eureka, MT",order:1},
     {id:"12301933",name:"Kootenai River bl Libby Dam nr Libby MT",order:2},
     {id:"12302055",name:"Fisher River near Libby MT",order:3},
@@ -432,37 +432,41 @@ const DRAINAGES = [
     {id:"12323242",name:"Silver Bow Creek at Montana Street, at Butte, MT",order:1},
     {id:"12323250",name:"Silver Bow Cr bl Blacktail Cr, at Butte, MT",order:2},
     {id:"12323600",name:"Silver Bow Creek at Opportunity MT",order:3},
-    {id:"12323670",name:"Mill Creek nr Anaconda, MT",order:4},
-    {id:"12323700",name:"Mill Creek at Opportunity, MT",order:5},
-    {id:"12323710",name:"Willow Creek nr Anaconda, MT",order:6},
-    {id:"12323720",name:"Willow Creek at Opportunity, MT",order:7},
-    {id:"12323750",name:"Silver Bow Creek at Warm Springs MT",order:8},
-    {id:"12323760",name:"Warm Springs Creek near Anaconda MT",order:9},
-    {id:"12323770",name:"Warm Springs Creek at Warm Springs MT",order:10},
-    {id:"12323800",name:"Clark Fork near Galen MT",order:11},
-    {id:"12324200",name:"Clark Fork at Deer Lodge MT",order:14},
-    {id:"12324400",name:"Clark Fork ab Little Blackfoot R nr Garrison MT",order:15},
-    {id:"12324590",name:"Little Blackfoot River near Garrison MT",order:16},
-    {id:"12324680",name:"Clark Fork at Goldcreek MT",order:17},
-    {id:"12325500",name:"Flint Creek near Southern Cross MT",order:18},
-    {id:"12329500",name:"Flint Creek at Maxville MT",order:19},
-    {id:"12330000",name:"Boulder Creek at Maxville MT",order:20},
-    {id:"12331500",name:"Flint Creek near Drummond MT",order:21},
-    {id:"12331800",name:"Clark Fork near Drummond MT",order:22}
+    {id:"12323750",name:"Silver Bow Creek at Warm Springs MT",order:4},
+    {id:"12323800",name:"Clark Fork near Galen MT",order:5},
+    {id:"12324200",name:"Clark Fork at Deer Lodge MT",order:6},
+    {id:"12324400",name:"Clark Fork ab Little Blackfoot R nr Garrison MT",order:7},
+    {id:"12324680",name:"Clark Fork at Goldcreek MT",order:8},
+    {id:"12331800",name:"Clark Fork near Drummond MT",order:9}
+  ]},
+  { name:"Clark Fork headwater tributaries", type:"tributaries", sites:[
+    {id:"12323670",name:"Mill Creek nr Anaconda, MT",order:1},
+    {id:"12323700",name:"Mill Creek at Opportunity, MT",order:2},
+    {id:"12323710",name:"Willow Creek nr Anaconda, MT",order:3},
+    {id:"12323720",name:"Willow Creek at Opportunity, MT",order:4},
+    {id:"12323760",name:"Warm Springs Creek near Anaconda MT",order:5},
+    {id:"12323770",name:"Warm Springs Creek at Warm Springs MT",order:6},
+    {id:"12324590",name:"Little Blackfoot River near Garrison MT",order:7},
+    {id:"12325500",name:"Flint Creek near Southern Cross MT",order:8},
+    {id:"12329500",name:"Flint Creek at Maxville MT",order:9},
+    {id:"12330000",name:"Boulder Creek at Maxville MT",order:10},
+    {id:"12331500",name:"Flint Creek near Drummond MT",order:11}
   ]},
   { name:"Clark Fork - Drummond to Plains", type:"mainstem", sites:[
+    {id:"12334550",name:"Clark Fork at Turah Bridge nr Bonner MT",order:1},
+    {id:"12340500",name:"Clark Fork above Missoula MT",order:2},
+    {id:"12353000",name:"Clark Fork below Missoula MT",order:3},
+    {id:"12353650",name:"Clark Fork at Superior, MT",order:4},
+    {id:"12354500",name:"Clark Fork at St. Regis MT",order:5},
+    {id:"12354700",name:"Clark Fork near Paradise, MT",order:6},
+    {id:"12389000",name:"Clark Fork near Plains MT",order:7}
+  ]},
+  { name:"Clark Fork tributaries - Drummond to Plains", type:"tributaries", sites:[
     {id:"12332000",name:"Middle Fork Rock Cr nr Philipsburg MT",order:1},
     {id:"12334510",name:"Rock Creek near Clinton MT",order:2},
-    {id:"12334550",name:"Clark Fork at Turah Bridge nr Bonner MT",order:3},
-    {id:"12340500",name:"Clark Fork above Missoula MT",order:4},
-    {id:"12353000",name:"Clark Fork below Missoula MT",order:5},
-    {id:"12353650",name:"Clark Fork at Superior, MT",order:6},
-    {id:"12354000",name:"St. Regis River near St. Regis, MT",order:7},
-    {id:"12354500",name:"Clark Fork at St. Regis MT",order:8},
-    {id:"12354700",name:"Clark Fork near Paradise, MT",order:9},
-    {id:"12389000",name:"Clark Fork near Plains MT",order:10},
-    {id:"12389500",name:"Thompson River near Thompson Falls MT",order:11},
-    {id:"12390700",name:"Prospect Creek at Thompson Falls MT",order:12}
+    {id:"12354000",name:"St. Regis River near St. Regis, MT",order:3},
+    {id:"12389500",name:"Thompson River near Thompson Falls MT",order:4},
+    {id:"12390700",name:"Prospect Creek at Thompson Falls MT",order:5}
   ]},
   { name:"Blackfoot River", type:"tributaries", sites:[
     {id:"12335100",name:"Blackfoot R ab Nevada Cr nr Helmville MT",order:1},
@@ -471,13 +475,13 @@ const DRAINAGES = [
   ,
     {id:"12338300",name:"NF Blackfoot R ab Dry Gulch nr Ovando MT",order:4}
   ]},
-  { name:"Bitterroot River", type:"tributaries", sites:[
+  { name:"Bitterroot River", type:"mainstem", sites:[
     {id:"12342500",name:"West Fork Bitterroot River nr Conner MT",order:1},
     {id:"12344000",name:"Bitterroot River near Darby MT",order:2},
     {id:"12350250",name:"Bitterroot River at Bell Crossing nr Victor MT",order:3},
     {id:"12352500",name:"Bitterroot River near Missoula MT",order:4}
   ]},
-  { name:"Flathead River", type:"tributaries", sites:[
+  { name:"Flathead River", type:"mainstem", sites:[
     {id:"12355000",name:"Flathead River at Flathead British Columbia",order:1},
     {id:"12355500",name:"N F Flathead River nr Columbia Falls MT",order:2},
     {id:"12358500",name:"M F Flathead River near West Glacier MT",order:3},
@@ -506,7 +510,7 @@ const DRAINAGES = [
     {id:"06253000",name:"FIVEMILE CREEK NEAR SHOSHONI, WY",order:10},
     {id:"06258000",name:"MUDDY CREEK NEAR SHOSHONI, WY",order:11}
   ]},
-  { name:"North Platte River", type:"mainstem", sites:[
+  { name:"North Platte River", type:"tributaries", sites:[
     {id:"06620000",name:"NORTH PLATTE RIVER NEAR NORTHGATE, CO",order:1},
     {id:"06622700",name:"NORTH BRUSH CREEK NEAR SARATOGA, WY",order:2},
     {id:"06623800",name:"ENCAMPMENT RIVER AB HOG PARK CR, NR ENCAMPMENT, WY",order:3},
@@ -523,7 +527,7 @@ const DRAINAGES = [
     {id:"06660000",name:"LARAMIE RIVER AT LARAMIE, WY",order:14},
     {id:"06670500",name:"LARAMIE RIVER NEAR FORT LARAMIE, WY",order:15}
   ]},
-  { name:"Green River WY", type:"mainstem", sites:[
+  { name:"Green River WY", type:"tributaries", sites:[
     {id:"09188500",name:"GREEN RIVER AT WARREN BRIDGE, NEAR DANIEL, WY",order:1},
     {id:"09189020",name:"Forty Rod Creek at Daniel Hatchery, nr Daniel, WY",order:2},
     {id:"09191150",name:"North Cottonwood Cr bl Halverson Cr, nr Daniel, WY",order:3},
@@ -565,7 +569,7 @@ const DRAINAGES = [
     {id:"09228000",name:"Henrys Fork near Burntfork, WY",order:39},
     {id:"09229500",name:"HENRYS FORK NEAR MANILA, UT",order:40}
   ]},
-  { name:"Snake River WY", type:"mainstem", sites:[
+  { name:"Snake River WY", type:"tributaries", sites:[
     {id:"13010065",name:"SNAKE RIVER AB JACKSON LAKE AT FLAGG RANCH WY",order:1},
     {id:"13011000",name:"SNAKE RIVER NEAR MORAN, WY",order:2},
     {id:"13011500",name:"Pacific Creek at Moran, WY",order:3},
@@ -1173,6 +1177,12 @@ async function runAnalysis() {
     setStatus("Checking critical flow/temperature thresholds...","loading");
     const criticalAnomalies = checkCriticalThresholds(current, drainages);
     anomalies.push(...criticalAnomalies);
+    setStatus("Checking NWS flood stages...","loading");
+    const floodAnomalies = await checkFloodStages(allIds, drainages);
+    anomalies.push(...floodAnomalies);
+    setStatus("Detecting potential rating shifts...","loading");
+    const shiftAnomalies = await detectShifts(allIds, drainages);
+    anomalies.push(...shiftAnomalies);
     anomalies.sort((a,b)=>{const o={critical:0,high:1,medium:2};return (o[a.severity]??3)-(o[b.severity]??3);});
     lastCurrent = current; lastStats = stats; lastDrainages = drainages;
     renderResults(drainages, current, dailyMeans, stats, anomalies);
@@ -1193,7 +1203,239 @@ async function runAnalysis() {
   btn.disabled=false; btn.textContent="Run Analysis";
 }
 
+// ===== SHIFT DETECTION =====
+// Detects when a site's discharge is trending upward over 7 days BUT
+// historical trends and/or comparison sites show it should be stable or declining.
+// This indicates the rating needs a shift (vegetation, debris, beaver activity
+// raising stage, which inflates computed discharge).
+async function detectShifts(siteIds, drainages) {
+  const anomalies = [];
+  const today = getToday();
+  const batchSize = 30;
+
+  // First, get 7-day daily values for all sites to analyze trends
+  const siteFlowTrends = {};
+
+  for (let i = 0; i < siteIds.length; i += batchSize) {
+    const batch = siteIds.slice(i, i + batchSize);
+    try {
+      const url = `${DV_URL}?format=json&sites=${batch.join(",")}&parameterCd=00060&period=P7D&siteStatus=active`;
+      const resp = await fetch(url);
+      if (!resp.ok) continue;
+      const data = await resp.json();
+      for (const ts of (data?.value?.timeSeries || [])) {
+        try {
+          const sid = ts.sourceInfo.siteCode[0].value;
+          const siteName = ts.sourceInfo.siteName;
+          const vals = ts.values?.[0]?.value || [];
+          const dailyVals = vals
+            .filter(v => v.value && v.value !== "-999999")
+            .map(v => ({date: v.dateTime.split("T")[0], value: parseFloat(v.value)}));
+          if (dailyVals.length >= 5) {
+            siteFlowTrends[sid] = {name: siteName, values: dailyVals};
+          }
+        } catch(e) { continue; }
+      }
+    } catch(e) { continue; }
+  }
+
+  // Calculate trend slope for each site
+  function getSlope(arr) {
+    const n = arr.length;
+    if (n < 3) return 0;
+    let sumX=0, sumY=0, sumXY=0, sumX2=0;
+    for (let i=0; i<n; i++) {
+      sumX+=i; sumY+=arr[i].value; sumXY+=i*arr[i].value; sumX2+=i*i;
+    }
+    return (n*sumXY - sumX*sumY) / (n*sumX2 - sumX*sumX);
+  }
+
+  function getPctPerDay(vals) {
+    const slope = getSlope(vals);
+    const mean = vals.reduce((a,b)=>a+b.value,0)/vals.length;
+    return mean > 0 ? (slope/mean)*100 : 0;
+  }
+
+  // For each site, check if it's rising when it shouldn't be
+  for (const [sid, sd] of Object.entries(siteFlowTrends)) {
+    const pctPerDay = getPctPerDay(sd.values);
+
+    // Only look at sites with discharge increasing (>0.5%/day over 7 days)
+    if (pctPerDay <= 0.5) continue;
+
+    // Check 1: Is historical trend for this week declining or stable?
+    // Look at historical stats for today vs 7 days ago
+    const stats = lastStats[sid]?.["00060"];
+    if (stats) {
+      const now = new Date();
+      const todayStat = stats[today];
+      const weekAgo = new Date(now); weekAgo.setDate(weekAgo.getDate() - 7);
+      const weekAgoKey = `${String(weekAgo.getMonth()+1).padStart(2,'0')}-${String(weekAgo.getDate()).padStart(2,'0')}`;
+      const weekAgoStat = stats[weekAgoKey];
+
+      if (todayStat && weekAgoStat && weekAgoStat.value > 0) {
+        const histTrend = ((todayStat.value - weekAgoStat.value) / weekAgoStat.value) * 100;
+
+        // If historically flow should be declining or stable this week,
+        // but this site is rising — shift likely needed
+        if (histTrend <= 2 && pctPerDay > 1.0) {
+          let drainageName = "Unknown";
+          for (const dr of drainages) {
+            if (dr.sites.find(s => s.id === sid)) { drainageName = dr.name; break; }
+          }
+
+          const totalIncrease = ((sd.values[sd.values.length-1].value - sd.values[0].value) / sd.values[0].value * 100).toFixed(1);
+          const severity = pctPerDay > 3.0 ? "high" : "medium";
+
+          anomalies.push({
+            siteId: sid, siteName: sd.name, drainage: drainageName, severity,
+            type: "Shift likely needed",
+            detail: `Discharge increasing ${totalIncrease}% over 7 days (${pctPerDay.toFixed(1)}%/day), but historical trend for this week is ${histTrend > 0 ? "+" : ""}${histTrend.toFixed(1)}%. Rising flow against seasonal expectations suggests stage is being affected by vegetation/debris buildup.`
+          });
+          continue;
+        }
+      }
+    }
+
+    // Check 2: Compare to nearby sites in same drainage
+    // If this site is rising but peers in the same group are stable/declining
+    for (const dr of drainages) {
+      const siteInGroup = dr.sites.find(s => s.id === sid);
+      if (!siteInGroup) continue;
+
+      const peerTrends = [];
+      for (const peer of dr.sites) {
+        if (peer.id === sid) continue;
+        const peerData = siteFlowTrends[peer.id];
+        if (peerData) {
+          peerTrends.push(getPctPerDay(peerData.values));
+        }
+      }
+
+      if (peerTrends.length >= 2) {
+        const avgPeerTrend = peerTrends.reduce((a,b)=>a+b,0) / peerTrends.length;
+
+        // If this site is rising significantly more than its peers
+        if (pctPerDay > avgPeerTrend + 2.0 && pctPerDay > 1.0) {
+          let drainageName = dr.name;
+          const totalIncrease = ((sd.values[sd.values.length-1].value - sd.values[0].value) / sd.values[0].value * 100).toFixed(1);
+          const severity = (pctPerDay - avgPeerTrend) > 4.0 ? "high" : "medium";
+
+          anomalies.push({
+            siteId: sid, siteName: sd.name, drainage: drainageName, severity,
+            type: "Shift likely needed",
+            detail: `Discharge increasing ${totalIncrease}% over 7 days (${pctPerDay.toFixed(1)}%/day) while nearby sites average ${avgPeerTrend.toFixed(1)}%/day. This site is rising when peers are not, suggesting rating shift needed (vegetation/debris/beaver).`
+          });
+          break;
+        }
+      }
+      break;
+    }
+  }
+  return anomalies;
+}
+
 // ===== CRITICAL THRESHOLD CHECKS =====
+
+// NWS Flood stages (gage height in feet) from NOAA NWPS API
+// action = monitor closely, minor = flooding begins, moderate = significant, major = extensive
+const NWS_FLOOD_STAGES = [
+  {usgs:"06054500",name:"Missouri River at Toston",action:10,minor:10.5,moderate:11,major:12},
+  {usgs:"06090800",name:"Missouri River at Fort Benton",action:13,minor:13.5,moderate:15,major:17},
+  {usgs:"06099500",name:"Marias River near Shelby",action:8,minor:9,moderate:13,major:15},
+  {usgs:"06109500",name:"Missouri River at Virgelle",action:17,minor:17,moderate:20,major:23},
+  {usgs:"06177000",name:"Missouri River near Wolf Point",action:21,minor:23,moderate:26.5,major:27.5},
+  {usgs:"06192500",name:"Yellowstone River near Livingston",action:9.5,minor:10.5,moderate:12,major:13},
+  {usgs:"06200000",name:"Boulder River at Big Timber",action:-1,minor:8,moderate:-1,major:-1},
+  {usgs:"06214500",name:"Yellowstone River at Billings",action:12.5,minor:13.5,moderate:14.5,major:15},
+  {usgs:"06295000",name:"Yellowstone River at Forsyth",action:-1,minor:14,moderate:-1,major:-1},
+  {usgs:"06309000",name:"Yellowstone River at Miles City",action:-1,minor:14,moderate:-1,major:-1},
+  {usgs:"06327500",name:"Yellowstone River at Glendive",action:51.5,minor:53.5,moderate:60,major:65},
+  {usgs:"06329500",name:"Yellowstone River near Sidney",action:17,minor:19,moderate:20,major:21.7},
+  {usgs:"06125600",name:"Musselshell River near Lavina",action:-1,minor:9.5,moderate:-1,major:-1},
+  {usgs:"12324200",name:"Clark Fork at Deer Lodge",action:5,minor:6,moderate:-1,major:-1},
+  {usgs:"12340000",name:"Blackfoot River near Bonner",action:9.5,minor:10,moderate:16,major:17},
+  {usgs:"12344000",name:"Bitterroot River near Darby",action:7,minor:7.5,moderate:-1,major:-1},
+  {usgs:"12350250",name:"Bitterroot River at Bell Crossing near Victor",action:11,minor:11.5,moderate:-1,major:-1},
+  {usgs:"12354500",name:"Clark Fork at St. Regis",action:18,minor:19,moderate:21,major:22},
+  {usgs:"12363000",name:"Flathead River at Columbia Falls",action:12.5,minor:13,moderate:18,major:22},
+  {usgs:"12372000",name:"Flathead River near Polson",action:-1,minor:18,moderate:-1,major:-1},
+  {usgs:"12389000",name:"Clark Fork near Plains",action:15,minor:16,moderate:18,major:19.5},
+  {usgs:"12389500",name:"Thompson River near Thompson Falls",action:6.5,minor:7,moderate:-1,major:-1},
+  {usgs:"12390700",name:"Prospect Creek at Thompson Falls",action:6.5,minor:7.5,moderate:8,major:9},
+];
+
+// Check current gage height against NWS flood stages
+async function checkFloodStages(siteIds, drainages) {
+  const anomalies = [];
+  // Only check sites that have flood stages defined
+  const floodSiteIds = NWS_FLOOD_STAGES.map(s => s.usgs).filter(id => siteIds.includes(id));
+  if (!floodSiteIds.length) return anomalies;
+
+  // Fetch current gage height for these sites
+  const batchSize = 50;
+  const ghData = {};
+  for (let i = 0; i < floodSiteIds.length; i += batchSize) {
+    const batch = floodSiteIds.slice(i, i + batchSize);
+    try {
+      const url = `${IV_URL}?format=json&sites=${batch.join(",")}&parameterCd=00065&siteStatus=active`;
+      const resp = await fetch(url);
+      if (!resp.ok) continue;
+      const data = await resp.json();
+      for (const ts of (data?.value?.timeSeries || [])) {
+        try {
+          const sid = ts.sourceInfo.siteCode[0].value;
+          const vals = ts.values?.[0]?.value || [];
+          if (!vals.length) continue;
+          const latest = vals[vals.length-1];
+          const v = parseFloat(latest.value);
+          if (!isNaN(v) && latest.value !== "-999999") ghData[sid] = v;
+        } catch(e) { continue; }
+      }
+    } catch(e) { continue; }
+  }
+
+  // Compare against flood stages
+  for (const fs of NWS_FLOOD_STAGES) {
+    const gh = ghData[fs.usgs];
+    if (gh === undefined) continue;
+
+    let drainageName = "Unknown";
+    for (const dr of drainages) {
+      if (dr.sites.find(s => s.id === fs.usgs)) { drainageName = dr.name; break; }
+    }
+
+    // Check from highest to lowest
+    if (fs.major > 0 && gh >= fs.major) {
+      anomalies.push({siteId:fs.usgs, siteName:fs.name, drainage:drainageName, severity:"critical",
+        type:"MAJOR FLOOD STAGE",
+        detail:`Gage height ${gh.toFixed(2)} ft is AT or ABOVE major flood stage (${fs.major} ft)`});
+    } else if (fs.moderate > 0 && gh >= fs.moderate) {
+      anomalies.push({siteId:fs.usgs, siteName:fs.name, drainage:drainageName, severity:"critical",
+        type:"MODERATE FLOOD STAGE",
+        detail:`Gage height ${gh.toFixed(2)} ft is AT or ABOVE moderate flood stage (${fs.moderate} ft)`});
+    } else if (fs.minor > 0 && gh >= fs.minor) {
+      anomalies.push({siteId:fs.usgs, siteName:fs.name, drainage:drainageName, severity:"high",
+        type:"MINOR FLOOD STAGE",
+        detail:`Gage height ${gh.toFixed(2)} ft is AT or ABOVE minor flood stage (${fs.minor} ft)`});
+    } else if (fs.action > 0 && gh >= fs.action) {
+      anomalies.push({siteId:fs.usgs, siteName:fs.name, drainage:drainageName, severity:"high",
+        type:"NWS ACTION STAGE",
+        detail:`Gage height ${gh.toFixed(2)} ft is AT or ABOVE NWS action stage (${fs.action} ft)`});
+    } else if (fs.action > 0 && gh >= fs.action * 0.90) {
+      anomalies.push({siteId:fs.usgs, siteName:fs.name, drainage:drainageName, severity:"medium",
+        type:"Approaching NWS action stage",
+        detail:`Gage height ${gh.toFixed(2)} ft is within 10% of NWS action stage (${fs.action} ft)`});
+    } else if (fs.minor > 0 && gh >= fs.minor * 0.85) {
+      anomalies.push({siteId:fs.usgs, siteName:fs.name, drainage:drainageName, severity:"medium",
+        type:"Approaching minor flood stage",
+        detail:`Gage height ${gh.toFixed(2)} ft is within 15% of NWS minor flood stage (${fs.minor} ft)`});
+    }
+  }
+  return anomalies;
+}
+
+// ===== ORIGINAL CRITICAL THRESHOLD CHECKS =====
 function checkCriticalThresholds(current, drainages) {
   const anomalies = [];
   const now = new Date();
@@ -1500,6 +1742,21 @@ async function fetchDV(siteId, paramCd) {
   } catch(e) { return []; }
 }
 
+// Fetch 7-day daily mean values for graph overlay (comparable to historical means)
+async function fetchDVMeans(siteId, paramCd) {
+  const url = `${DV_URL}?format=json&sites=${siteId}&parameterCd=${paramCd}&period=P7D&siteStatus=active`;
+  try {
+    const resp = await fetch(url);
+    if (!resp.ok) return [];
+    const data = await resp.json();
+    const ts = data?.value?.timeSeries?.[0];
+    if (!ts) return [];
+    return ts.values[0].value
+      .filter(v => v.value && v.value !== "-999999")
+      .map(v => ({date: v.dateTime.split("T")[0], value: parseFloat(v.value)}));
+  } catch(e) { return []; }
+}
+
 // Build historical comparison data (mean for each day-of-year over the last 7 days)
 function getHistoricalLine(stats, siteId, paramCd) {
   const siteStats = stats[siteId]?.[paramCd];
@@ -1534,8 +1791,9 @@ async function showAnomalyGraph(anomaly) {
   document.body.appendChild(modal);
   modal.addEventListener("click", (e) => { if (e.target === modal) modal.remove(); });
 
-  // Fetch recent daily values
+  // Fetch recent data
   const dvData = await fetchDV(anomaly.siteId, paramCd);
+  const dvMeanData = await fetchDVMeans(anomaly.siteId, paramCd);
   const histLine = getHistoricalLine(lastStats, anomaly.siteId, paramCd);
 
   // For upstream/downstream anomalies, also fetch the comparison site
@@ -1591,7 +1849,7 @@ async function showAnomalyGraph(anomaly) {
 
   // Update subtitle
   modal.querySelector(".graph-subtitle").textContent =
-    `${anomaly.drainage} | ${anomaly.type} | Last 7 days (instantaneous values) vs historical average`;
+    `${anomaly.drainage} | ${anomaly.type} | Light = instantaneous, Bold = daily mean, Dashed = historical mean`;
 
   // Build chart
   const ctx = document.getElementById("anomalyChart").getContext("2d");
@@ -1599,26 +1857,37 @@ async function showAnomalyGraph(anomaly) {
 
   if (dvData.length) {
     datasets.push({
-      label: `${anomaly.siteName} (actual)`,
+      label: `${anomaly.siteName} (instantaneous)`,
       data: dvData.map(d => ({x: d.date, y: d.value})),
-      borderColor: "#2563eb",
-      backgroundColor: "rgba(37,99,235,0.1)",
-      borderWidth: 1.5,
+      borderColor: "#93c5fd",
+      borderWidth: 1,
       fill: false,
       tension: 0.3,
       pointRadius: 0
     });
   }
 
+  if (dvMeanData.length) {
+    datasets.push({
+      label: `${anomaly.siteName} (daily mean)`,
+      data: dvMeanData.map(d => ({x: d.date, y: d.value})),
+      borderColor: "#2563eb",
+      borderWidth: 2.5,
+      fill: false,
+      tension: 0.3,
+      pointRadius: 4
+    });
+  }
+
   if (histLine.length) {
     datasets.push({
-      label: `${anomaly.siteName} (historical avg)`,
+      label: `Historical Mean`,
       data: histLine.map(d => ({x: d.date, y: d.value})),
-      borderColor: "#2563eb",
+      borderColor: "#dc2626",
       borderDash: [6, 4],
-      borderWidth: 1.5,
+      borderWidth: 2,
       fill: false,
-      pointRadius: 0,
+      pointRadius: 3,
       tension: 0.3
     });
   }
@@ -1711,12 +1980,14 @@ async function showSiteGraph(siteId, siteName, drainageName) {
   document.body.appendChild(modal);
   modal.addEventListener("click", (e) => { if (e.target === modal) modal.remove(); });
 
-  // Fetch discharge
+  // Fetch discharge - IV (instantaneous) + DV (daily means)
   const dvQ = await fetchDV(siteId, "00060");
+  const dvMeanQ = await fetchDVMeans(siteId, "00060");
   const histQ = getHistoricalLine(lastStats, siteId, "00060");
 
-  // Fetch temperature
+  // Fetch temperature - IV (instantaneous) + DV (daily means)
   const dvT = await fetchDV(siteId, "00010");
+  const dvMeanT = await fetchDVMeans(siteId, "00010");
   const histT = getHistoricalLine(lastStats, siteId, "00010");
 
   // Fetch comparison group peers
@@ -1738,13 +2009,14 @@ async function showSiteGraph(siteId, siteName, drainageName) {
   }
 
   modal.querySelector(".graph-subtitle").textContent =
-    `${drainageName} | Last 7 days (instantaneous values)${peers.length ? " + comparison group" : ""} vs historical average`;
+    `${drainageName} | Light line = instantaneous, Bold = daily mean, Dashed = historical mean${peers.length ? " | + comparison group" : ""}`;
 
   // Discharge chart
   if (dvQ.length || histQ.length) {
     const datasets = [
-      ...(dvQ.length ? [{label:`${siteName} (actual)`, data:dvQ.map(d=>({x:d.date,y:d.value})), borderColor:"#2563eb", borderWidth:1.5, fill:false, tension:0.3, pointRadius:0}] : []),
-      ...(histQ.length ? [{label:`${siteName} (historical avg)`, data:histQ.map(d=>({x:d.date,y:d.value})), borderColor:"#2563eb", borderDash:[6,4], borderWidth:1.5, fill:false, pointRadius:0, tension:0.3}] : []),
+      ...(dvQ.length ? [{label:`Instantaneous (15-min)`, data:dvQ.map(d=>({x:d.date,y:d.value})), borderColor:"#93c5fd", borderWidth:1, fill:false, tension:0.3, pointRadius:0}] : []),
+      ...(dvMeanQ.length ? [{label:`Daily Mean`, data:dvMeanQ.map(d=>({x:d.date,y:d.value})), borderColor:"#2563eb", borderWidth:2.5, fill:false, tension:0.3, pointRadius:4}] : []),
+      ...(histQ.length ? [{label:`Historical Mean`, data:histQ.map(d=>({x:d.date,y:d.value})), borderColor:"#dc2626", borderDash:[6,4], borderWidth:2, fill:false, pointRadius:3, tension:0.3}] : []),
       ...peerDataQ.map(p => ({label:`${p.name}`, data:p.data.map(d=>({x:d.date,y:d.value})), borderColor:p.color, borderWidth:1.5, fill:false, tension:0.3, pointRadius:0}))
     ];
     new Chart(document.getElementById("siteChartQ").getContext("2d"), {
@@ -1759,8 +2031,9 @@ async function showSiteGraph(siteId, siteName, drainageName) {
   // Temperature chart
   if (dvT.length || histT.length) {
     const datasets = [
-      ...(dvT.length ? [{label:`${siteName} (actual)`, data:dvT.map(d=>({x:d.date,y:d.value})), borderColor:"#dc2626", borderWidth:1.5, fill:false, tension:0.3, pointRadius:0}] : []),
-      ...(histT.length ? [{label:`${siteName} (historical avg)`, data:histT.map(d=>({x:d.date,y:d.value})), borderColor:"#dc2626", borderDash:[6,4], borderWidth:1.5, fill:false, pointRadius:0, tension:0.3}] : []),
+      ...(dvT.length ? [{label:`Instantaneous (15-min)`, data:dvT.map(d=>({x:d.date,y:d.value})), borderColor:"#fca5a5", borderWidth:1, fill:false, tension:0.3, pointRadius:0}] : []),
+      ...(dvMeanT.length ? [{label:`Daily Mean`, data:dvMeanT.map(d=>({x:d.date,y:d.value})), borderColor:"#dc2626", borderWidth:2.5, fill:false, tension:0.3, pointRadius:4}] : []),
+      ...(histT.length ? [{label:`Historical Mean`, data:histT.map(d=>({x:d.date,y:d.value})), borderColor:"#2563eb", borderDash:[6,4], borderWidth:2, fill:false, pointRadius:3, tension:0.3}] : []),
       ...peerDataT.map(p => ({label:`${p.name}`, data:p.data.map(d=>({x:d.date,y:d.value})), borderColor:p.color, borderWidth:1.5, fill:false, tension:0.3, pointRadius:0}))
     ];
     new Chart(document.getElementById("siteChartT").getContext("2d"), {
