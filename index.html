@@ -1240,76 +1240,72 @@ async function detectShifts(siteIds, drainages) {
   for (const [sid, sd] of Object.entries(siteFlowTrends)) {
     const pctPerDay = getPctPerDay(sd.values);
 
-    // Only look at sites with discharge increasing (>0.5%/day over 7 days)
-    if (pctPerDay <= 0.5) continue;
+    // Only look at sites with GRADUAL discharge increase (>0.5%/day but not sudden spikes)
+    // A sudden jump (>5%/day) is likely a real event, not vegetation growth
+    if (pctPerDay <= 0.5 || pctPerDay > 5.0) continue;
 
-    // Check 1: Is historical trend for this week declining or stable?
-    // Look at historical stats for today vs 7 days ago
-    const stats = lastStats[sid]?.["00060"];
-    if (stats) {
+    // FIRST: Check if upstream or nearby sites are also rising
+    // If they are, this is a real flow increase (regulation release, rain, etc.) - NOT a shift
+    let upstreamAlsoRising = false;
+    for (const dr of drainages) {
+      const siteIdx = dr.sites.findIndex(s => s.id === sid);
+      if (siteIdx < 0) continue;
+
+      // Check sites before this one in the group (upstream)
+      for (let ui = 0; ui < siteIdx; ui++) {
+        const upPeer = siteFlowTrends[dr.sites[ui].id];
+        if (upPeer) {
+          const upTrend = getPctPerDay(upPeer.values);
+          if (upTrend > 0.3) { upstreamAlsoRising = true; break; }
+        }
+      }
+      if (upstreamAlsoRising) break;
+
+      // Also check all peers in the group
+      const peerTrends = [];
+      for (const peer of dr.sites) {
+        if (peer.id === sid) continue;
+        const peerData = siteFlowTrends[peer.id];
+        if (peerData) peerTrends.push(getPctPerDay(peerData.values));
+      }
+      if (peerTrends.length >= 1) {
+        const avgPeerTrend = peerTrends.reduce((a,b)=>a+b,0) / peerTrends.length;
+        // If peers are also rising (avg > 0.3%/day), it's a real event
+        if (avgPeerTrend > 0.3) upstreamAlsoRising = true;
+      }
+      break;
+    }
+
+    // If upstream/peers are also rising, this is real - skip it
+    if (upstreamAlsoRising) continue;
+
+    // Now check historical: is this site rising against seasonal expectations?
+    const siteStats = lastStats[sid]?.["00060"];
+    if (siteStats) {
       const now = new Date();
-      const todayStat = stats[today];
+      const todayStat = siteStats[today];
       const weekAgo = new Date(now); weekAgo.setDate(weekAgo.getDate() - 7);
       const weekAgoKey = `${String(weekAgo.getMonth()+1).padStart(2,'0')}-${String(weekAgo.getDate()).padStart(2,'0')}`;
-      const weekAgoStat = stats[weekAgoKey];
+      const weekAgoStat = siteStats[weekAgoKey];
 
       if (todayStat && weekAgoStat && weekAgoStat.value > 0) {
         const histTrend = ((todayStat.value - weekAgoStat.value) / weekAgoStat.value) * 100;
 
-        // If historically flow should be declining or stable this week,
-        // but this site is rising — shift likely needed
+        // Rising against seasonal expectations AND upstream is NOT rising
         if (histTrend <= 2 && pctPerDay > 1.0) {
           let drainageName = "Unknown";
           for (const dr of drainages) {
             if (dr.sites.find(s => s.id === sid)) { drainageName = dr.name; break; }
           }
-
           const totalIncrease = ((sd.values[sd.values.length-1].value - sd.values[0].value) / sd.values[0].value * 100).toFixed(1);
           const severity = pctPerDay > 3.0 ? "high" : "medium";
-
           anomalies.push({
             siteId: sid, siteName: sd.name, drainage: drainageName, severity,
             type: "Shift likely needed",
-            detail: `Discharge increasing ${totalIncrease}% over 7 days (${pctPerDay.toFixed(1)}%/day), but historical trend for this week is ${histTrend > 0 ? "+" : ""}${histTrend.toFixed(1)}%. Rising flow against seasonal expectations suggests stage is being affected by vegetation/debris buildup.`
+            detail: `Discharge gradually increasing ${totalIncrease}% over 7 days (${pctPerDay.toFixed(1)}%/day) while upstream/nearby sites are stable. Historical trend for this week is ${histTrend > 0 ? "+" : ""}${histTrend.toFixed(1)}%. Gradual rise without upstream source suggests vegetation/debris buildup.`
           });
-          continue;
         }
       }
-    }
-
-    // Check 2: Compare to nearby sites in same drainage
-    // If this site is rising but peers in the same group are stable/declining
-    for (const dr of drainages) {
-      const siteInGroup = dr.sites.find(s => s.id === sid);
-      if (!siteInGroup) continue;
-
-      const peerTrends = [];
-      for (const peer of dr.sites) {
-        if (peer.id === sid) continue;
-        const peerData = siteFlowTrends[peer.id];
-        if (peerData) {
-          peerTrends.push(getPctPerDay(peerData.values));
-        }
-      }
-
-      if (peerTrends.length >= 2) {
-        const avgPeerTrend = peerTrends.reduce((a,b)=>a+b,0) / peerTrends.length;
-
-        // If this site is rising significantly more than its peers
-        if (pctPerDay > avgPeerTrend + 2.0 && pctPerDay > 1.0) {
-          let drainageName = dr.name;
-          const totalIncrease = ((sd.values[sd.values.length-1].value - sd.values[0].value) / sd.values[0].value * 100).toFixed(1);
-          const severity = (pctPerDay - avgPeerTrend) > 4.0 ? "high" : "medium";
-
-          anomalies.push({
-            siteId: sid, siteName: sd.name, drainage: drainageName, severity,
-            type: "Shift likely needed",
-            detail: `Discharge increasing ${totalIncrease}% over 7 days (${pctPerDay.toFixed(1)}%/day) while nearby sites average ${avgPeerTrend.toFixed(1)}%/day. This site is rising when peers are not, suggesting rating shift needed (vegetation/debris/beaver).`
-          });
-          break;
-        }
-      }
-      break;
     }
   }
   return anomalies;
@@ -1822,6 +1818,85 @@ async function showAnomalyGraph(anomaly) {
         plugins:{legend:{position:"bottom"}},
         scales:{x:{type:"time",time:{displayFormats:{hour:"MMM d ha",day:"MMM d"}}},
           y:{title:{display:true,text:paramLabel}}}}
+    });
+    return;
+  }
+
+  // SHIFT NEEDED: show daily mean vs historical mean (clean comparison)
+  if (anomaly.type.toLowerCase().includes("shift")) {
+    const dvMeanData = await fetchDVMeans(anomaly.siteId, "00060");
+    const histLine = getHistoricalLine(lastStats, anomaly.siteId, "00060");
+
+    modal.querySelector(".graph-subtitle").textContent =
+      `${anomaly.drainage} | Daily mean vs historical mean (shift analysis)`;
+
+    const ctx = document.getElementById("anomalyChart").getContext("2d");
+    const datasets = [];
+    if (dvMeanData.length) datasets.push({
+      label:`${anomaly.siteName} (daily mean)`, data:dvMeanData.map(d=>({x:d.date,y:d.value})),
+      borderColor:"#2563eb", borderWidth:2.5, fill:false, tension:0.3, pointRadius:4
+    });
+    if (histLine.length) datasets.push({
+      label:`Historical mean`, data:histLine.map(d=>({x:d.date,y:d.value})),
+      borderColor:"#dc2626", borderDash:[6,4], borderWidth:2, fill:false, pointRadius:3, tension:0.3
+    });
+
+    new Chart(ctx, {
+      type:"line", data:{datasets},
+      options:{responsive:true, maintainAspectRatio:false,
+        plugins:{legend:{position:"bottom"}},
+        scales:{x:{type:"time",time:{displayFormats:{day:"MMM d"}}},
+          y:{title:{display:true,text:"Discharge (cfs)"},beginAtZero:true}}}
+    });
+    return;
+  }
+
+  // UPSTREAM/DOWNSTREAM: show instantaneous values for this site + upstream + downstream
+  if (anomaly.type.toLowerCase().includes("upstream") || anomaly.type.toLowerCase().includes("downstream")) {
+    modal.querySelector(".graph-subtitle").textContent =
+      `${anomaly.drainage} | Instantaneous values - upstream/downstream comparison`;
+
+    const ctx = document.getElementById("anomalyChart").getContext("2d");
+    const datasets = [];
+    const colors = ["#2563eb","#dc2626","#059669","#7c3aed"];
+    let colorIdx = 0;
+
+    // Find this site's position in the drainage and get upstream/downstream
+    let sitesToPlot = [{id:anomaly.siteId, name:anomaly.siteName}];
+    for (const dr of lastDrainages) {
+      const idx = dr.sites.findIndex(s => s.id === anomaly.siteId);
+      if (idx >= 0) {
+        // Add up to 2 upstream
+        if (idx > 0) sitesToPlot.unshift({id:dr.sites[idx-1].id, name:dr.sites[idx-1].name + " (upstream)"});
+        if (idx > 1) sitesToPlot.unshift({id:dr.sites[idx-2].id, name:dr.sites[idx-2].name + " (upstream)"});
+        // Add up to 2 downstream
+        if (idx < dr.sites.length-1) sitesToPlot.push({id:dr.sites[idx+1].id, name:dr.sites[idx+1].name + " (downstream)"});
+        if (idx < dr.sites.length-2) sitesToPlot.push({id:dr.sites[idx+2].id, name:dr.sites[idx+2].name + " (downstream)"});
+        break;
+      }
+    }
+
+    for (const site of sitesToPlot) {
+      const dv = await fetchDV(site.id, paramCd);
+      if (dv.length) {
+        const isMain = site.id === anomaly.siteId;
+        datasets.push({
+          label: site.name,
+          data: dv.map(d=>({x:d.date,y:d.value})),
+          borderColor: colors[colorIdx % colors.length],
+          borderWidth: isMain ? 2 : 1.5,
+          fill: false, tension: 0.3, pointRadius: 0
+        });
+      }
+      colorIdx++;
+    }
+
+    new Chart(ctx, {
+      type:"line", data:{datasets},
+      options:{responsive:true, maintainAspectRatio:false,
+        plugins:{legend:{position:"bottom"}},
+        scales:{x:{type:"time",time:{displayFormats:{hour:"MMM d ha",day:"MMM d"}}},
+          y:{title:{display:true,text:paramLabel},beginAtZero:paramCd==="00060"}}}
     });
     return;
   }
