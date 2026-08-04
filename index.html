@@ -1851,6 +1851,59 @@ async function showAnomalyGraph(anomaly) {
     return;
   }
 
+  // OUTLIER (pct-of-normal): show instantaneous values only, no means
+  if (anomaly.type.toLowerCase().includes("outlier") || anomaly.type.toLowerCase().includes("nearby")) {
+    const dvData2 = await fetchDV(anomaly.siteId, paramCd);
+    modal.querySelector(".graph-subtitle").textContent =
+      `${anomaly.drainage} | Instantaneous values (${paramCd==="00010"?"temperature":"discharge"})`;
+
+    const ctx = document.getElementById("anomalyChart").getContext("2d");
+    const datasets = [];
+    if (dvData2.length) {
+      datasets.push({
+        label: anomaly.siteName,
+        data: dvData2.map(d=>({x:d.date,y:d.value})),
+        borderColor:"#2563eb", borderWidth:2, fill:false, tension:0.3, pointRadius:0
+      });
+    }
+
+    // Also show nearby tribs from comparison group or drainage
+    const peers = getComparisonPeers(anomaly.siteId);
+    const peerIds = peers.length > 0 ? peers.slice(0,3) : [];
+    if (!peerIds.length) {
+      for (const dr of DRAINAGES) {
+        if (dr.name === anomaly.drainage) {
+          for (const s of dr.sites) {
+            if (s.id !== anomaly.siteId && peerIds.length < 3) peerIds.push(s.id);
+          }
+          break;
+        }
+      }
+    }
+    const tribColors = ["#059669","#7c3aed","#ea580c"];
+    for (let pi=0; pi<peerIds.length; pi++) {
+      const pdv = await fetchDV(peerIds[pi], paramCd);
+      if (pdv.length) {
+        let pName = peerIds[pi];
+        for (const dr of DRAINAGES) { const f=dr.sites.find(s=>s.id===peerIds[pi]); if(f){pName=f.name;break;} }
+        datasets.push({
+          label: pName,
+          data: pdv.map(d=>({x:d.date,y:d.value})),
+          borderColor:tribColors[pi], borderWidth:1.5, fill:false, tension:0.3, pointRadius:0
+        });
+      }
+    }
+
+    new Chart(ctx, {
+      type:"line", data:{datasets},
+      options:{responsive:true, maintainAspectRatio:false,
+        plugins:{legend:{position:"bottom"}},
+        scales:{x:{type:"time",time:{displayFormats:{hour:"MMM d ha",day:"MMM d"}}},
+          y:{title:{display:true,text:paramCd==="00010"?"Temperature (°C)":"Discharge (cfs)"}}}}
+    });
+    return;
+  }
+
   // UPSTREAM/DOWNSTREAM: show instantaneous values for this site + upstream + downstream
   if (anomaly.type.toLowerCase().includes("upstream") || anomaly.type.toLowerCase().includes("downstream")) {
     modal.querySelector(".graph-subtitle").textContent =
@@ -1858,20 +1911,20 @@ async function showAnomalyGraph(anomaly) {
 
     const ctx = document.getElementById("anomalyChart").getContext("2d");
     const datasets = [];
-    const colors = ["#2563eb","#dc2626","#059669","#7c3aed"];
+    const colors = ["#94a3b8","#64748b","#2563eb","#059669","#7c3aed"];
     let colorIdx = 0;
 
-    // Find this site's position in the drainage and get upstream/downstream
+    // Search ALL drainages (not just filtered) to find this site and its neighbors
     let sitesToPlot = [{id:anomaly.siteId, name:anomaly.siteName}];
-    for (const dr of lastDrainages) {
+    for (const dr of DRAINAGES) {
       const idx = dr.sites.findIndex(s => s.id === anomaly.siteId);
       if (idx >= 0) {
         // Add up to 2 upstream
-        if (idx > 0) sitesToPlot.unshift({id:dr.sites[idx-1].id, name:dr.sites[idx-1].name + " (upstream)"});
-        if (idx > 1) sitesToPlot.unshift({id:dr.sites[idx-2].id, name:dr.sites[idx-2].name + " (upstream)"});
+        if (idx > 1) sitesToPlot.unshift({id:dr.sites[idx-2].id, name:dr.sites[idx-2].name});
+        if (idx > 0) sitesToPlot.unshift({id:dr.sites[idx-1].id, name:dr.sites[idx-1].name});
         // Add up to 2 downstream
-        if (idx < dr.sites.length-1) sitesToPlot.push({id:dr.sites[idx+1].id, name:dr.sites[idx+1].name + " (downstream)"});
-        if (idx < dr.sites.length-2) sitesToPlot.push({id:dr.sites[idx+2].id, name:dr.sites[idx+2].name + " (downstream)"});
+        if (idx < dr.sites.length-1) sitesToPlot.push({id:dr.sites[idx+1].id, name:dr.sites[idx+1].name});
+        if (idx < dr.sites.length-2) sitesToPlot.push({id:dr.sites[idx+2].id, name:dr.sites[idx+2].name});
         break;
       }
     }
@@ -1884,7 +1937,7 @@ async function showAnomalyGraph(anomaly) {
           label: site.name,
           data: dv.map(d=>({x:d.date,y:d.value})),
           borderColor: colors[colorIdx % colors.length],
-          borderWidth: isMain ? 2 : 1.5,
+          borderWidth: isMain ? 2.5 : 1.5,
           fill: false, tension: 0.3, pointRadius: 0
         });
       }
