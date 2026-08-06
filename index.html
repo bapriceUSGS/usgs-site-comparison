@@ -1781,8 +1781,12 @@ async function showAnomalyGraph(anomaly) {
   modal.className = "graph-modal";
   modal.innerHTML = `<div class="graph-modal-content">
     <button class="graph-modal-close" onclick="this.closest('.graph-modal').remove()">&times;</button>
-    <div class="graph-title">${anomaly.siteName}</div>
+    <div class="graph-title">${anomaly.siteName} (${anomaly.siteId})</div>
     <div class="graph-subtitle">Loading data...</div>
+    <div style="background:#fef2f2;border-left:4px solid #dc2626;padding:10px 15px;margin:10px 0;border-radius:0 5px 5px 0;font-size:0.85em">
+      <strong style="text-transform:uppercase">${anomaly.severity}: ${anomaly.type}</strong><br>
+      ${anomaly.detail}
+    </div>
     <div class="graph-container"><canvas id="anomalyChart"></canvas></div>
   </div>`;
   document.body.appendChild(modal);
@@ -1917,34 +1921,30 @@ async function showAnomalyGraph(anomaly) {
     return;
   }
 
-  // UPSTREAM/DOWNSTREAM: show instantaneous values for this site + upstream + downstream
-  if (anomaly.type.toLowerCase().includes("upstream") || anomaly.type.toLowerCase().includes("downstream") || anomaly.type.toLowerCase().includes("relationship")) {
+  // DEFAULT: show instantaneous values for this site + upstream + downstream neighbors
+  // This catches upstream/downstream, relationship, and any other anomaly types
+  {
     modal.querySelector(".graph-subtitle").textContent =
-      `${anomaly.drainage} | Instantaneous values - upstream/downstream comparison`;
+      `${anomaly.drainage} | Instantaneous values - site with neighbors`;
 
     const ctx = document.getElementById("anomalyChart").getContext("2d");
     const datasets = [];
     const colors = ["#94a3b8","#64748b","#2563eb","#059669","#7c3aed"];
     let colorIdx = 0;
 
-    // Search ALL drainages (not just filtered) to find this site and its neighbors
+    // Search ALL drainages to find this site and its neighbors
     let sitesToPlot = [];
     for (const dr of DRAINAGES) {
       const idx = dr.sites.findIndex(s => s.id === anomaly.siteId);
       if (idx >= 0) {
-        // Add up to 2 upstream
         if (idx > 1) sitesToPlot.push({id:dr.sites[idx-2].id, name:dr.sites[idx-2].name});
         if (idx > 0) sitesToPlot.push({id:dr.sites[idx-1].id, name:dr.sites[idx-1].name});
-        // Add the flagged site
         sitesToPlot.push({id:anomaly.siteId, name:anomaly.siteName});
-        // Add up to 2 downstream
         if (idx < dr.sites.length-1) sitesToPlot.push({id:dr.sites[idx+1].id, name:dr.sites[idx+1].name});
         if (idx < dr.sites.length-2) sitesToPlot.push({id:dr.sites[idx+2].id, name:dr.sites[idx+2].name});
         break;
       }
     }
-
-    // If site not found in any drainage, just plot the site itself
     if (!sitesToPlot.length) sitesToPlot = [{id:anomaly.siteId, name:anomaly.siteName}];
 
     for (const site of sitesToPlot) {
@@ -1960,7 +1960,7 @@ async function showAnomalyGraph(anomaly) {
             fill: false, tension: 0.3, pointRadius: 0
           });
         }
-      } catch(e) { /* skip failed fetches */ }
+      } catch(e) { /* skip */ }
       colorIdx++;
     }
 
@@ -1973,180 +1973,9 @@ async function showAnomalyGraph(anomaly) {
             y:{title:{display:true,text:paramLabel},beginAtZero:paramCd==="00060"}}}
       });
     } else {
-      document.getElementById("anomalyChart").parentElement.innerHTML = '<p style="color:#94a3b8;text-align:center;padding:20px">No instantaneous data available for these sites</p>';
-    }
-    return;
-  }
-
-  const dvMeanData = await fetchDVMeans(anomaly.siteId, paramCd);
-  const histLine = getHistoricalLine(lastStats, anomaly.siteId, paramCd);
-
-  // For upstream/downstream anomalies, also fetch the comparison site
-  let compDV = [];
-  let compHist = [];
-  let compName = "";
-  let nearbyTribs = []; // For tributary anomalies, store all nearby trib data
-
-  if (anomaly.type.includes("upstream/downstream") || anomaly.type.includes("relationship")) {
-    // Find the upstream site
-    for (const dr of lastDrainages) {
-      const idx = dr.sites.findIndex(s => s.id === anomaly.siteId);
-      if (idx > 0) {
-        const upSite = dr.sites[idx - 1];
-        compName = upSite.name;
-        compDV = await fetchDV(upSite.id, paramCd);
-        compHist = getHistoricalLine(lastStats, upSite.id, paramCd);
-        break;
-      }
-    }
-  } else if (anomaly.type.includes("nearby tributaries")) {
-    // First check comparison groups for defined peers
-    const peers = getComparisonPeers(anomaly.siteId);
-    if (peers.length > 0) {
-      for (const peerId of peers.slice(0, 4)) {
-        const dv = await fetchDV(peerId, paramCd);
-        if (dv.length) {
-          // Find site name
-          let peerName = peerId;
-          for (const dr of lastDrainages) {
-            const found = dr.sites.find(s => s.id === peerId);
-            if (found) { peerName = found.name; break; }
-          }
-          nearbyTribs.push({name: peerName, id: peerId, data: dv});
-        }
-      }
-    } else {
-      // Fall back to same drainage group
-      for (const dr of lastDrainages) {
-        if (dr.name === anomaly.drainage && dr.type === "tributaries") {
-          const otherSites = dr.sites.filter(s => s.id !== anomaly.siteId);
-          for (const site of otherSites.slice(0, 4)) {
-            const dv = await fetchDV(site.id, paramCd);
-            if (dv.length) {
-              nearbyTribs.push({name: site.name, id: site.id, data: dv});
-            }
-          }
-          break;
-        }
-      }
+      document.getElementById("anomalyChart").parentElement.innerHTML = '<p style="color:#94a3b8;text-align:center;padding:20px">No instantaneous data available</p>';
     }
   }
-
-  // Update subtitle
-  modal.querySelector(".graph-subtitle").textContent =
-    `${anomaly.drainage} | ${anomaly.type} | Light = instantaneous, Bold = daily mean, Dashed = historical mean`;
-
-  // Build chart
-  const ctx = document.getElementById("anomalyChart").getContext("2d");
-  const datasets = [];
-
-  if (dvData.length) {
-    datasets.push({
-      label: `${anomaly.siteName} (instantaneous)`,
-      data: dvData.map(d => ({x: d.date, y: d.value})),
-      borderColor: "#93c5fd",
-      borderWidth: 1,
-      fill: false,
-      tension: 0.3,
-      pointRadius: 0
-    });
-  }
-
-  if (dvMeanData.length) {
-    datasets.push({
-      label: `${anomaly.siteName} (daily mean)`,
-      data: dvMeanData.map(d => ({x: d.date, y: d.value})),
-      borderColor: "#2563eb",
-      borderWidth: 2.5,
-      fill: false,
-      tension: 0.3,
-      pointRadius: 4
-    });
-  }
-
-  if (histLine.length) {
-    datasets.push({
-      label: `Historical Mean`,
-      data: histLine.map(d => ({x: d.date, y: d.value})),
-      borderColor: "#dc2626",
-      borderDash: [6, 4],
-      borderWidth: 2,
-      fill: false,
-      pointRadius: 3,
-      tension: 0.3
-    });
-  }
-
-  if (compDV.length) {
-    datasets.push({
-      label: `${compName} (actual)`,
-      data: compDV.map(d => ({x: d.date, y: d.value})),
-      borderColor: "#dc2626",
-      backgroundColor: "rgba(220,38,38,0.1)",
-      borderWidth: 1.5,
-      fill: false,
-      tension: 0.3,
-      pointRadius: 0
-    });
-  }
-
-  if (compHist.length) {
-    datasets.push({
-      label: `${compName} (historical avg)`,
-      data: compHist.map(d => ({x: d.date, y: d.value})),
-      borderColor: "#dc2626",
-      borderDash: [6, 4],
-      borderWidth: 1.5,
-      fill: false,
-      pointRadius: 0,
-      tension: 0.3
-    });
-  }
-
-  // Add nearby tributaries (each gets a distinct color)
-  const tribColors = ["#059669","#7c3aed","#ea580c","#0284c7"];
-  for (let i=0; i<nearbyTribs.length; i++) {
-    const trib = nearbyTribs[i];
-    const color = tribColors[i % tribColors.length];
-    datasets.push({
-      label: `${trib.name} (nearby trib)`,
-      data: trib.data.map(d => ({x: d.date, y: d.value})),
-      borderColor: color,
-      borderWidth: 1.5,
-      fill: false,
-      tension: 0.3,
-      pointRadius: 0
-    });
-  }
-
-  new Chart(ctx, {
-    type: "line",
-    data: { datasets },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      interaction: { mode: "index", intersect: false },
-      plugins: {
-        legend: { position: "bottom", labels: { font: {size: 11} } },
-        tooltip: {
-          callbacks: {
-            label: (ctx) => `${ctx.dataset.label}: ${ctx.parsed.y.toFixed(paramCd==="00010"?1:0)} ${paramCd==="00010"?"°C":"cfs"}`
-          }
-        }
-      },
-      scales: {
-        x: {
-          type: "time",
-          time: { displayFormats: { hour: "MMM d ha", day: "MMM d" } },
-          title: { display: true, text: "Date" }
-        },
-        y: {
-          title: { display: true, text: paramLabel },
-          beginAtZero: paramCd === "00060"
-        }
-      }
-    }
-  });
 }
 
 // Override anomaly rendering to make items clickable
