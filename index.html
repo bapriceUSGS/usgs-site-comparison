@@ -1764,6 +1764,7 @@ function getHistoricalLine(stats, siteId, paramCd) {
 }
 
 async function showAnomalyGraph(anomaly) {
+ try {
   // Determine what to graph based on anomaly type
   let paramCd;
   if (anomaly.type.toLowerCase().includes("temp") ||
@@ -1800,7 +1801,8 @@ async function showAnomalyGraph(anomaly) {
   modal.addEventListener("click", (e) => { if (e.target === modal) modal.remove(); });
 
   // Fetch recent data
-  const dvData = await fetchDV(anomaly.siteId, paramCd);
+  let dvData = [];
+  try { dvData = await fetchDV(anomaly.siteId, paramCd); } catch(e) {}
 
   // For critical flow/temp anomalies, show simplified graph with threshold line
   const isCriticalThreshold = anomaly.type.toLowerCase().includes("critical flow") ||
@@ -1990,9 +1992,11 @@ async function showAnomalyGraph(anomaly) {
     // Render discharge chart
     const qCanvas = document.getElementById("anomalyChart");
     if (datasetsQ.length && qCanvas) {
-      new Chart(qCanvas, {type:"line", data:{datasets:datasetsQ},
-        options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{position:"bottom"},title:{display:true,text:"Discharge (cfs)"}},
-          scales:{x:{type:"time",time:{displayFormats:{hour:"MMM d ha",day:"MMM d"}}},y:{beginAtZero:true}}}});
+      try {
+        new Chart(qCanvas, {type:"line", data:{datasets:datasetsQ},
+          options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{position:"bottom"},title:{display:true,text:"Discharge (cfs)"}},
+            scales:{x:{type:"time",time:{displayFormats:{hour:"MMM d ha",day:"MMM d"}}},y:{beginAtZero:true}}}});
+      } catch(e) { qCanvas.parentElement.innerHTML = '<p style="color:red;padding:20px">Chart error: '+e.message+'</p>'; }
     } else if (qCanvas) {
       qCanvas.parentElement.innerHTML = '<p style="color:#94a3b8;text-align:center;padding:40px">No discharge data</p>';
     }
@@ -2000,13 +2004,20 @@ async function showAnomalyGraph(anomaly) {
     // Render temperature chart
     const tCanvas = document.getElementById("anomalyChartTemp");
     if (datasetsT.length && tCanvas) {
-      new Chart(tCanvas, {type:"line", data:{datasets:datasetsT},
-        options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{position:"bottom"},title:{display:true,text:"Water Temperature (°C)"}},
-          scales:{x:{type:"time",time:{displayFormats:{hour:"MMM d ha",day:"MMM d"}}},y:{}}}});
+      try {
+        new Chart(tCanvas, {type:"line", data:{datasets:datasetsT},
+          options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{position:"bottom"},title:{display:true,text:"Water Temperature (°C)"}},
+            scales:{x:{type:"time",time:{displayFormats:{hour:"MMM d ha",day:"MMM d"}}},y:{}}}});
+      } catch(e) { tCanvas.parentElement.innerHTML = '<p style="color:red;padding:20px">Chart error: '+e.message+'</p>'; }
     } else if (tCanvas) {
       tCanvas.parentElement.innerHTML = '<p style="color:#94a3b8;text-align:center;padding:40px">No temperature data</p>';
     }
   }
+ } catch(err) {
+  const sub = document.querySelector(".graph-subtitle");
+  if (sub) sub.textContent = "Error loading graph: " + err.message;
+  console.error("showAnomalyGraph error:", err);
+ }
 }
 
 // Override anomaly rendering to make items clickable
