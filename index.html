@@ -415,29 +415,40 @@ const DRAINAGES = [
     {id:"12302055",name:"Fisher River near Libby MT",order:3},
     {id:"12304500",name:"Yaak River near Troy MT",order:4}
   ]},
-  { name:"Clark Fork - headwaters", type:"mainstem", sites:[
-    {id:"12323242",name:"Silver Bow Creek at Montana Street, at Butte, MT",order:1},
-    {id:"12323250",name:"Silver Bow Cr bl Blacktail Cr, at Butte, MT",order:2},
-    {id:"12323600",name:"Silver Bow Creek at Opportunity MT",order:3},
-    {id:"12323750",name:"Silver Bow Creek at Warm Springs MT",order:4},
-    {id:"12323800",name:"Clark Fork near Galen MT",order:5},
-    {id:"12324200",name:"Clark Fork at Deer Lodge MT",order:6},
-    {id:"12324400",name:"Clark Fork ab Little Blackfoot R nr Garrison MT",order:7},
-    {id:"12324680",name:"Clark Fork at Goldcreek MT",order:8},
-    {id:"12331800",name:"Clark Fork near Drummond MT",order:9}
+  { name:"Upper Silver Bow Creek", type:"mainstem", sites:[
+    {id:"12323233",name:"Blacktail Creek above Grove Gulch, at Butte, MT",order:1},
+    {id:"12323242",name:"Silver Bow Creek at Montana Street, at Butte, MT",order:2},
+    {id:"12323250",name:"Silver Bow Cr bl Blacktail Cr, at Butte, MT",order:3},
+    {id:"12323600",name:"Silver Bow Creek at Opportunity MT",order:4}
   ]},
-  { name:"Clark Fork headwater tributaries", type:"tributaries", sites:[
+  { name:"Lower Silver Bow / Upper Clark Fork", type:"mainstem", sites:[
+    {id:"12323600",name:"Silver Bow Creek at Opportunity MT",order:1},
+    {id:"12323750",name:"Silver Bow Creek at Warm Springs MT",order:2},
+    {id:"12323800",name:"Clark Fork near Galen MT",order:3},
+    {id:"12324200",name:"Clark Fork at Deer Lodge MT",order:4}
+  ]},
+  { name:"Mid Clark Fork", type:"mainstem", sites:[
+    {id:"12324400",name:"Clark Fork ab Little Blackfoot R nr Garrison MT",order:1},
+    {id:"12324680",name:"Clark Fork at Goldcreek MT",order:2},
+    {id:"12331800",name:"Clark Fork near Drummond MT",order:3},
+    {id:"12334550",name:"Clark Fork at Turah Bridge nr Bonner MT",order:4}
+  ]},
+  { name:"Upper Clark Fork tributaries", type:"tributaries", sites:[
     {id:"12323670",name:"Mill Creek nr Anaconda, MT",order:1},
     {id:"12323700",name:"Mill Creek at Opportunity, MT",order:2},
     {id:"12323710",name:"Willow Creek nr Anaconda, MT",order:3},
     {id:"12323720",name:"Willow Creek at Opportunity, MT",order:4},
     {id:"12323760",name:"Warm Springs Creek near Anaconda MT",order:5},
-    {id:"12323770",name:"Warm Springs Creek at Warm Springs MT",order:6},
-    {id:"12324590",name:"Little Blackfoot River near Garrison MT",order:7},
-    {id:"12325500",name:"Flint Creek near Southern Cross MT",order:8},
-    {id:"12329500",name:"Flint Creek at Maxville MT",order:9},
-    {id:"12330000",name:"Boulder Creek at Maxville MT",order:10},
-    {id:"12331500",name:"Flint Creek near Drummond MT",order:11}
+    {id:"12323770",name:"Warm Springs Creek at Warm Springs MT",order:6}
+  ]},
+  { name:"Mid Clark Fork tributaries", type:"tributaries", sites:[
+    {id:"12324590",name:"Little Blackfoot River near Garrison MT",order:1},
+    {id:"12325500",name:"Flint Creek near Southern Cross MT",order:2},
+    {id:"12329500",name:"Flint Creek at Maxville MT",order:3},
+    {id:"12330000",name:"Boulder Creek at Maxville MT",order:4},
+    {id:"12331500",name:"Flint Creek near Drummond MT",order:5},
+    {id:"12332000",name:"Middle Fork Rock Cr nr Philipsburg MT",order:6},
+    {id:"12334510",name:"Rock Creek near Clinton MT",order:7}
   ]},
   { name:"Clark Fork - Drummond to Plains", type:"mainstem", sites:[
     {id:"12334550",name:"Clark Fork at Turah Bridge nr Bonner MT",order:1},
@@ -448,12 +459,12 @@ const DRAINAGES = [
     {id:"12354700",name:"Clark Fork near Paradise, MT",order:6},
     {id:"12389000",name:"Clark Fork near Plains MT",order:7}
   ]},
-  { name:"Clark Fork tributaries - Drummond to Plains", type:"tributaries", sites:[
-    {id:"12332000",name:"Middle Fork Rock Cr nr Philipsburg MT",order:1},
-    {id:"12334510",name:"Rock Creek near Clinton MT",order:2},
-    {id:"12354000",name:"St. Regis River near St. Regis, MT",order:3},
-    {id:"12389500",name:"Thompson River near Thompson Falls MT",order:4},
-    {id:"12390700",name:"Prospect Creek at Thompson Falls MT",order:5}
+  { name:"Lower Clark Fork / Flathead tributaries", type:"tributaries", sites:[
+    {id:"12354000",name:"St. Regis River near St. Regis, MT",order:1},
+    {id:"12389500",name:"Thompson River near Thompson Falls MT",order:2},
+    {id:"12390700",name:"Prospect Creek at Thompson Falls MT",order:3},
+    {id:"12377150",name:"Mission Creek ab reservoir nr St. Ignatius MT",order:4},
+    {id:"12381400",name:"South Fork Jocko River near Arlee MT",order:5}
   ]},
   { name:"Blackfoot River", type:"tributaries", sites:[
     {id:"12335100",name:"Blackfoot R ab Nevada Cr nr Helmville MT",order:1},
@@ -467,21 +478,23 @@ const DRAINAGES = [
     {id:"12350250",name:"Bitterroot River at Bell Crossing nr Victor MT",order:3},
     {id:"12352500",name:"Bitterroot River near Missoula MT",order:4}
   ]},
-  { name:"Flathead River", type:"mainstem", sites:[
+  { name:"Flathead River mainstem", type:"mainstem", sites:[
+    {id:"12363000",name:"Flathead River at Columbia Falls MT",order:1},
+    {id:"12366500",name:"Flathead River at Foys Bend nr Kalispell MT",order:2},
+    {id:"12372000",name:"Flathead River near Polson MT",order:3},
+    {id:"12388700",name:"Flathead River at Perma MT",order:4}
+  ]},
+  { name:"Flathead River forks", type:"tributaries", sites:[
     {id:"12355000",name:"Flathead River at Flathead British Columbia",order:1},
     {id:"12355500",name:"N F Flathead River nr Columbia Falls MT",order:2},
     {id:"12358500",name:"M F Flathead River near West Glacier MT",order:3},
     {id:"12359800",name:"S F Flathead R ab Twin C nr Hungry Horse MT",order:4},
-    {id:"12362500",name:"S F Flathead River nr Columbia Falls MT",order:5},
-    {id:"12363000",name:"Flathead River at Columbia Falls MT",order:6},
-    {id:"12365700",name:"Stillwater River at Lawrence Park, at Kalispell",order:7},
-    {id:"12366000",name:"Whitefish River near Kalispell MT",order:8},
-    {id:"12366500",name:"Flathead River at Foys Bend nr Kalispell MT",order:9},
-    {id:"12370000",name:"Swan River near Bigfork, MT",order:10},
-    {id:"12372000",name:"Flathead River near Polson MT",order:11},
-    {id:"12377150",name:"Mission Creek ab reservoir nr St. Ignatius MT",order:12},
-    {id:"12381400",name:"South Fork Jocko River near Arlee MT",order:13},
-    {id:"12388700",name:"Flathead River at Perma MT",order:14}
+    {id:"12362500",name:"S F Flathead River nr Columbia Falls MT",order:5}
+  ]},
+  { name:"Upper Flathead tributaries", type:"tributaries", sites:[
+    {id:"12365700",name:"Stillwater River at Lawrence Park, at Kalispell",order:1},
+    {id:"12366000",name:"Whitefish River near Kalispell MT",order:2},
+    {id:"12370000",name:"Swan River near Bigfork, MT",order:3}
   ]},
   { name:"Wind/Bighorn River WY", type:"tributaries", sites:[
     {id:"06218500",name:"WIND RIVER NEAR DUBOIS, WY",order:1},
@@ -602,7 +615,7 @@ const THRESHOLDS = {
 };
 
 const OFFICES = {
-  "Western MT":["06012500","06015460","06016000","06017000","06018500","06019500","06020600","06023000","06023100","06024450","06024540","06024580","06025250","06025500","06026210","06026420","12301250","12301933","12302055","12304500","12323242","12323250","12323600","12323670","12323700","12323710","12323720","12323750","12323760","12323770","12323800","12323840","12323850","12324200","12324400","12324590","12324680","12325500","12329500","12330000","12331500","12331800","12332000","12334510","12334550","12335100","12335500","12338300","12340000","12340500","12342500","12344000","12345510","12350250","12352500","12353000","12353650","12354000","12354500","12354700","12355000","12355500","12358500","12359800","12362500","12363000","12365700","12366000","12366500","12370000","12372000","12377150","12381400","12388700","12389000","12389500","12390700"],
+  "Western MT":["06012500","06015460","06016000","06017000","06018500","06019500","06020600","06023000","06023100","06024450","06024540","06024580","06025250","06025500","06026210","06026420","12301250","12301933","12302055","12304500","12323233","12323242","12323250","12323600","12323670","12323700","12323710","12323720","12323750","12323760","12323770","12323800","12323840","12323850","12324200","12324400","12324590","12324680","12325500","12329500","12330000","12331500","12331800","12332000","12334510","12334550","12335100","12335500","12338300","12340000","12340500","12342500","12344000","12345510","12350250","12352500","12353000","12353650","12354000","12354500","12354700","12355000","12355500","12358500","12359800","12362500","12363000","12365700","12366000","12366500","12370000","12372000","12377150","12381400","12388700","12389000","12389500","12390700"],
   "Central MT":["06006000","06015430","06026500","06027600","06031950","06033000","06034700","06035000","06036650","06036805","06036905","06037100","06037500","06038500","06038550","06038800","06040000","06040050","06040800","06041000","06041500","06043120","06043300","06043500","06048650","06050000","06052500","06053050","06054500","06056300","06061500","06062500","06063000","06065500","06066500","06071300","06071400","06073500","06073600","06074000","06076690","06077200","06077500","06078200","06078500","06079000","06080900","06082200","06085800","06088500","06089000","06090300","06090500","06090550","06090800","06091700","06092020","06093200","06094900","06097000","06098120","06098800","06099000","06099500","06101200","06101500","06101630","06102050","06102500","06108800","06109500","06114700","06137570","06137575","06138580","06139500","06139800","06139850","06139900","06192978"],
   "Eastern MT":["06110020","06111800","06115200","06119600","06120500","06120900","06123030","06125600","06126500","06127500","06130000","06130500","06131200","06153800","06154100","06154390","06154400","06154410","06154430","06155030","06155500","06164510","06167500","06172300","06172310","06174500","06175100","06175510","06177000","06177100","06177500","06177825","06179200","06181000","06183450","06185110","06185500","06192500","06195600","06195750","06195950","06197800","06200000","06204050","06204070","06204170","06205000","06207500","06207800","06208500","06209500","06210950","06211000","06211500","06214500","06217300","06287000","06287800","06288400","06294500","06295000","06296115","06307520","06307720","06309000","06309040","06309080","06324995","06325700","06327500","06328495","06329500"],
   "Eastern WY":["06036940","06186500","06187915","06188000","06190540","06191000","06191500","06274300","06278300","06279500","06279940","06280300","06281000","06285100","06289000","06290500","06291500","06293500","06294000","06295113","06295220","06306000","06306300","06307500","06307616","06307662","06307830","06308500","06309200","06313400","06317000","06318500","06324500","06326500","06426500","06427850","06454100","06620000","06622700","06623800","06625000","06630000","06630465","06632400","06634060","06634620","06635000","06646000","06652000","06657000","06660000","06670500","09253470","09255200","09257000","09258050","09258980","09259050","09259700"],
@@ -1905,7 +1918,7 @@ async function showAnomalyGraph(anomaly) {
   }
 
   // UPSTREAM/DOWNSTREAM: show instantaneous values for this site + upstream + downstream
-  if (anomaly.type.toLowerCase().includes("upstream") || anomaly.type.toLowerCase().includes("downstream")) {
+  if (anomaly.type.toLowerCase().includes("upstream") || anomaly.type.toLowerCase().includes("downstream") || anomaly.type.toLowerCase().includes("relationship")) {
     modal.querySelector(".graph-subtitle").textContent =
       `${anomaly.drainage} | Instantaneous values - upstream/downstream comparison`;
 
@@ -1915,13 +1928,15 @@ async function showAnomalyGraph(anomaly) {
     let colorIdx = 0;
 
     // Search ALL drainages (not just filtered) to find this site and its neighbors
-    let sitesToPlot = [{id:anomaly.siteId, name:anomaly.siteName}];
+    let sitesToPlot = [];
     for (const dr of DRAINAGES) {
       const idx = dr.sites.findIndex(s => s.id === anomaly.siteId);
       if (idx >= 0) {
         // Add up to 2 upstream
-        if (idx > 1) sitesToPlot.unshift({id:dr.sites[idx-2].id, name:dr.sites[idx-2].name});
-        if (idx > 0) sitesToPlot.unshift({id:dr.sites[idx-1].id, name:dr.sites[idx-1].name});
+        if (idx > 1) sitesToPlot.push({id:dr.sites[idx-2].id, name:dr.sites[idx-2].name});
+        if (idx > 0) sitesToPlot.push({id:dr.sites[idx-1].id, name:dr.sites[idx-1].name});
+        // Add the flagged site
+        sitesToPlot.push({id:anomaly.siteId, name:anomaly.siteName});
         // Add up to 2 downstream
         if (idx < dr.sites.length-1) sitesToPlot.push({id:dr.sites[idx+1].id, name:dr.sites[idx+1].name});
         if (idx < dr.sites.length-2) sitesToPlot.push({id:dr.sites[idx+2].id, name:dr.sites[idx+2].name});
@@ -1929,28 +1944,37 @@ async function showAnomalyGraph(anomaly) {
       }
     }
 
+    // If site not found in any drainage, just plot the site itself
+    if (!sitesToPlot.length) sitesToPlot = [{id:anomaly.siteId, name:anomaly.siteName}];
+
     for (const site of sitesToPlot) {
-      const dv = await fetchDV(site.id, paramCd);
-      if (dv.length) {
-        const isMain = site.id === anomaly.siteId;
-        datasets.push({
-          label: site.name,
-          data: dv.map(d=>({x:d.date,y:d.value})),
-          borderColor: colors[colorIdx % colors.length],
-          borderWidth: isMain ? 2.5 : 1.5,
-          fill: false, tension: 0.3, pointRadius: 0
-        });
-      }
+      try {
+        const dv = await fetchDV(site.id, paramCd);
+        if (dv.length) {
+          const isMain = site.id === anomaly.siteId;
+          datasets.push({
+            label: site.name,
+            data: dv.map(d=>({x:d.date,y:d.value})),
+            borderColor: colors[colorIdx % colors.length],
+            borderWidth: isMain ? 2.5 : 1.5,
+            fill: false, tension: 0.3, pointRadius: 0
+          });
+        }
+      } catch(e) { /* skip failed fetches */ }
       colorIdx++;
     }
 
-    new Chart(ctx, {
-      type:"line", data:{datasets},
-      options:{responsive:true, maintainAspectRatio:false,
-        plugins:{legend:{position:"bottom"}},
-        scales:{x:{type:"time",time:{displayFormats:{hour:"MMM d ha",day:"MMM d"}}},
-          y:{title:{display:true,text:paramLabel},beginAtZero:paramCd==="00060"}}}
-    });
+    if (datasets.length) {
+      new Chart(ctx, {
+        type:"line", data:{datasets},
+        options:{responsive:true, maintainAspectRatio:false,
+          plugins:{legend:{position:"bottom"}},
+          scales:{x:{type:"time",time:{displayFormats:{hour:"MMM d ha",day:"MMM d"}}},
+            y:{title:{display:true,text:paramLabel},beginAtZero:paramCd==="00060"}}}
+      });
+    } else {
+      document.getElementById("anomalyChart").parentElement.innerHTML = '<p style="color:#94a3b8;text-align:center;padding:20px">No instantaneous data available for these sites</p>';
+    }
     return;
   }
 
