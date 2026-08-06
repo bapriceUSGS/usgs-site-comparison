@@ -1784,7 +1784,8 @@ async function showAnomalyGraph(anomaly) {
     <div class="graph-title"></div>
     <div class="graph-subtitle">Loading data...</div>
     <div class="graph-alert" style="background:#fef2f2;border-left:4px solid #dc2626;padding:10px 15px;margin:10px 0;border-radius:0 5px 5px 0;font-size:0.85em"></div>
-    <div class="graph-container"><canvas id="anomalyChart"></canvas></div>
+    <div style="position:relative;height:300px;margin-bottom:10px"><canvas id="anomalyChart"></canvas></div>
+    <div style="position:relative;height:300px"><canvas id="anomalyChartTemp"></canvas></div>
   </div>`;
   // Set text content safely (avoids HTML injection issues)
   modal.querySelector(".graph-title").textContent = anomaly.siteName + " (" + anomaly.siteId + ")";
@@ -1933,20 +1934,9 @@ async function showAnomalyGraph(anomaly) {
     modal.querySelector(".graph-subtitle").textContent =
       `${anomaly.drainage} | Instantaneous values - site with neighbors`;
 
-    // Add a second chart canvas for temperature
-    const chartContainer = modal.querySelector(".graph-container");
-    const tempContainer = document.createElement("div");
-    tempContainer.className = "graph-container";
-    tempContainer.innerHTML = '<canvas id="anomalyChartTemp"></canvas>';
-    chartContainer.parentElement.insertBefore(tempContainer, chartContainer.nextSibling);
-
-    const ctx = document.getElementById("anomalyChart");
-    if (!ctx) return;
-    const chartCtx = ctx.getContext("2d");
     const datasetsQ = [];
     const datasetsT = [];
     const colors = ["#94a3b8","#64748b","#2563eb","#059669","#7c3aed"];
-    let colorIdx = 0;
 
     // Search ALL drainages to find this site and its neighbors
     let sitesToPlot = [];
@@ -1963,89 +1953,58 @@ async function showAnomalyGraph(anomaly) {
     }
     if (!sitesToPlot.length) sitesToPlot = [{id:anomaly.siteId, name:anomaly.siteName}];
 
-    // Fetch ALL sites in ONE request for discharge
-    try {
-      const ids = sitesToPlot.map(s=>s.id);
-      const urlQ = `https://waterservices.usgs.gov/nwis/iv/?format=json&sites=${ids.join(",")}&parameterCd=00060&period=P7D&siteStatus=active`;
-      const respQ = await fetch(urlQ);
-      if (respQ.ok) {
-        const data = await respQ.json();
-        for (const ts of (data?.value?.timeSeries || [])) {
-          try {
-            const sid = ts.sourceInfo.siteCode[0].value;
-            const vals = ts.values[0].value
-              .filter(v => v.value && v.value !== "-999999")
-              .map(v => ({date: v.dateTime, value: parseFloat(v.value)}));
-            if (vals.length) {
-              const site = sitesToPlot.find(s=>s.id===sid);
-              const isMain = sid === anomaly.siteId;
-              datasetsQ.push({
-                label: site ? site.name : sid,
-                data: vals.map(d=>({x:d.date,y:d.value})),
-                borderColor: colors[sitesToPlot.findIndex(s=>s.id===sid) % colors.length],
-                borderWidth: isMain ? 2.5 : 1.5,
-                fill: false, tension: 0.3, pointRadius: 0
-              });
-            }
-          } catch(e) { continue; }
-        }
-      }
-    } catch(e) { console.error("Q fetch error:", e); }
+    const ids = sitesToPlot.map(s=>s.id).join(",");
 
-    // Fetch ALL sites for temperature
+    // Fetch discharge for all sites
     try {
-      const ids = sitesToPlot.map(s=>s.id);
-      const urlT = `https://waterservices.usgs.gov/nwis/iv/?format=json&sites=${ids.join(",")}&parameterCd=00010&period=P7D&siteStatus=active`;
-      const respT = await fetch(urlT);
-      if (respT.ok) {
-        const data = await respT.json();
+      const resp = await fetch(`https://waterservices.usgs.gov/nwis/iv/?format=json&sites=${ids}&parameterCd=00060&period=P7D&siteStatus=active`);
+      if (resp.ok) {
+        const data = await resp.json();
         for (const ts of (data?.value?.timeSeries || [])) {
-          try {
-            const sid = ts.sourceInfo.siteCode[0].value;
-            const vals = ts.values[0].value
-              .filter(v => v.value && v.value !== "-999999")
-              .map(v => ({date: v.dateTime, value: parseFloat(v.value)}));
-            if (vals.length) {
-              const site = sitesToPlot.find(s=>s.id===sid);
-              const isMain = sid === anomaly.siteId;
-              datasetsT.push({
-                label: site ? site.name : sid,
-                data: vals.map(d=>({x:d.date,y:d.value})),
-                borderColor: colors[sitesToPlot.findIndex(s=>s.id===sid) % colors.length],
-                borderWidth: isMain ? 2.5 : 1.5,
-                fill: false, tension: 0.3, pointRadius: 0
-              });
-            }
-          } catch(e) { continue; }
+          const sid = ts.sourceInfo.siteCode[0].value;
+          const vals = ts.values[0].value.filter(v=>v.value&&v.value!=="-999999").map(v=>({x:v.dateTime,y:parseFloat(v.value)}));
+          if (vals.length) {
+            const ci = sitesToPlot.findIndex(s=>s.id===sid);
+            datasetsQ.push({label:sitesToPlot[ci]?.name||sid, data:vals, borderColor:colors[ci%colors.length], borderWidth:sid===anomaly.siteId?2.5:1.5, fill:false, tension:0.3, pointRadius:0});
+          }
         }
       }
-    } catch(e) { console.error("T fetch error:", e); }
+    } catch(e) {}
+
+    // Fetch temperature for all sites
+    try {
+      const resp = await fetch(`https://waterservices.usgs.gov/nwis/iv/?format=json&sites=${ids}&parameterCd=00010&period=P7D&siteStatus=active`);
+      if (resp.ok) {
+        const data = await resp.json();
+        for (const ts of (data?.value?.timeSeries || [])) {
+          const sid = ts.sourceInfo.siteCode[0].value;
+          const vals = ts.values[0].value.filter(v=>v.value&&v.value!=="-999999").map(v=>({x:v.dateTime,y:parseFloat(v.value)}));
+          if (vals.length) {
+            const ci = sitesToPlot.findIndex(s=>s.id===sid);
+            datasetsT.push({label:sitesToPlot[ci]?.name||sid, data:vals, borderColor:colors[ci%colors.length], borderWidth:sid===anomaly.siteId?2.5:1.5, fill:false, tension:0.3, pointRadius:0});
+          }
+        }
+      }
+    } catch(e) {}
 
     // Render discharge chart
-    if (datasetsQ.length) {
-      new Chart(chartCtx, {
-        type:"line", data:{datasets:datasetsQ},
-        options:{responsive:true, maintainAspectRatio:false,
-          plugins:{legend:{position:"bottom"},title:{display:true,text:"Discharge (cfs)"}},
-          scales:{x:{type:"time",time:{displayFormats:{hour:"MMM d ha",day:"MMM d"}}},
-            y:{title:{display:true,text:"cfs"},beginAtZero:true}}}
-      });
-    } else {
-      ctx.parentElement.innerHTML = '<p style="color:#94a3b8;text-align:center;padding:20px">No discharge data available</p>';
+    const qCanvas = document.getElementById("anomalyChart");
+    if (datasetsQ.length && qCanvas) {
+      new Chart(qCanvas, {type:"line", data:{datasets:datasetsQ},
+        options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{position:"bottom"},title:{display:true,text:"Discharge (cfs)"}},
+          scales:{x:{type:"time",time:{displayFormats:{hour:"MMM d ha",day:"MMM d"}}},y:{beginAtZero:true}}}});
+    } else if (qCanvas) {
+      qCanvas.parentElement.innerHTML = '<p style="color:#94a3b8;text-align:center;padding:40px">No discharge data</p>';
     }
 
     // Render temperature chart
-    const tempCanvas = document.getElementById("anomalyChartTemp");
-    if (datasetsT.length && tempCanvas) {
-      new Chart(tempCanvas.getContext("2d"), {
-        type:"line", data:{datasets:datasetsT},
-        options:{responsive:true, maintainAspectRatio:false,
-          plugins:{legend:{position:"bottom"},title:{display:true,text:"Water Temperature (°C)"}},
-          scales:{x:{type:"time",time:{displayFormats:{hour:"MMM d ha",day:"MMM d"}}},
-            y:{title:{display:true,text:"°C"}}}}
-      });
-    } else if (tempCanvas) {
-      tempCanvas.parentElement.innerHTML = '<p style="color:#94a3b8;text-align:center;padding:20px">No temperature data available</p>';
+    const tCanvas = document.getElementById("anomalyChartTemp");
+    if (datasetsT.length && tCanvas) {
+      new Chart(tCanvas, {type:"line", data:{datasets:datasetsT},
+        options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{position:"bottom"},title:{display:true,text:"Water Temperature (°C)"}},
+          scales:{x:{type:"time",time:{displayFormats:{hour:"MMM d ha",day:"MMM d"}}},y:{}}}});
+    } else if (tCanvas) {
+      tCanvas.parentElement.innerHTML = '<p style="color:#94a3b8;text-align:center;padding:40px">No temperature data</p>';
     }
   }
 }
