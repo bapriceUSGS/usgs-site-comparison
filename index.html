@@ -175,7 +175,11 @@
 </head>
 <body>
 <div class="container">
-    <header>
+    <div style="background:#334155;padding:8px 20px;border-radius:8px 8px 0 0;display:flex;gap:20px;font-size:0.9em">
+      <a href="index.html" style="color:white;text-decoration:none;font-weight:600;border-bottom:2px solid white;padding-bottom:2px">Discharge & Temperature</a>
+      <a href="qw.html" style="color:#94a3b8;text-decoration:none">Water Quality Parameters</a>
+    </div>
+    <header style="border-radius:0 0 8px 8px">
         <h1>USGS MT-WY Site Comparison Tool</h1>
         <p>Compares sites against their own historical record and flags anomalies in discharge and water temperature</p>
     </header>
@@ -699,6 +703,21 @@ const CRITICAL_THRESHOLDS = [
   {id:"06287000",name:"Bighorn R bl Yellowtail Afterbay Dam nr St. Xavier",flow:1500,temp:null,timing:null},
 ];
 
+// ===== CONFLUENCE RELATIONSHIPS =====
+// Defines where downstream site = sum of upstream inputs
+// downstream: the site that should equal the sum of 'inputs'
+// When checking ratios, compare downstream against SUM of inputs, not just the adjacent site
+const CONFLUENCES = [
+  {downstream:"12323800", inputs:["12323750","12323770"], name:"CF Galen = SB Warm Springs + WS Creek Warm Springs"},
+  {downstream:"12331800", inputs:["12324680","12331500"], name:"CF Drummond = CF Goldcreek + Flint Creek Drummond"},
+  {downstream:"12334550", inputs:["12331800","12334510"], name:"CF Turah = CF Drummond + Rock Creek Clinton"},
+  {downstream:"12340500", inputs:["12334550","12340000"], name:"CF above Missoula = CF Turah + Blackfoot Bonner"},
+  {downstream:"12353000", inputs:["12340500","12352500"], name:"CF below Missoula = CF above Missoula + Bitterroot Missoula"},
+  {downstream:"12389000", inputs:["12354500","12388700"], name:"CF Plains = CF St Regis + Flathead Perma"},
+  {downstream:"06054500", inputs:["06036650","06041500","06052500"], name:"Missouri Toston = Jefferson + Madison Norris + Gallatin Logan"},
+  {downstream:"06026500", inputs:["06023100","06026420"], name:"Jefferson Twin Bridges = Beaverhead Twin Bridges + Big Hole"},
+];
+
 // ===== USGS API =====
 const IV_URL = "https://waterservices.usgs.gov/nwis/iv/";
 const STAT_URL = "https://waterservices.usgs.gov/nwis/stat/";
@@ -835,16 +854,17 @@ function detectAnomalies(current, stats, drainages) {
         }
       }
 
-      // Discharge vs history
+      // Discharge vs history - only flag ABOVE (possible shift indicator)
+      // Below historical is visible in % Normal column, no need to flag
       if (sd["00060"]) {
         const hist = stats[site.id]?.["00060"]?.[today];
         if (hist && hist.value > 0) {
           const pctDev = ((sd["00060"].value - hist.value)/hist.value)*100;
-          if (Math.abs(pctDev) >= T.flowHistDevPct) {
-            const sev = Math.abs(pctDev)>=T.flowHistDevPct*2.5?"critical":Math.abs(pctDev)>=T.flowHistDevPct*1.5?"high":"medium";
+          if (pctDev >= T.flowHistDevPct) {
+            const sev = pctDev>=T.flowHistDevPct*2.5?"critical":pctDev>=T.flowHistDevPct*1.5?"high":"medium";
             anomalies.push({siteId:site.id, siteName:site.name, drainage:dr.name, severity:sev,
-              type:`Discharge ${pctDev>0?"above":"below"} historical avg`,
-              detail:`${sd["00060"].value.toFixed(0)} cfs vs historical mean ${hist.value.toFixed(0)} cfs for ${today} (${hist.count} yrs). ${Math.abs(pctDev).toFixed(0)}% ${pctDev>0?"above":"below"} normal`
+              type:`Discharge above historical avg`,
+              detail:`${sd["00060"].value.toFixed(0)} cfs vs historical mean ${hist.value.toFixed(0)} cfs for ${today} (${hist.count} yrs). ${pctDev.toFixed(0)}% above normal`
             });
           }
         }
@@ -852,55 +872,97 @@ function detectAnomalies(current, stats, drainages) {
     }
 
     // 2) Upstream/downstream ratio check (mainstem only)
-    // Compare the RATIO between adjacent sites today vs the historical ratio for this date.
-    // Example: if Bell Crossing is historically 40% of Darby on Jul 31 (irrigation season),
-    // then seeing it at 38% today is fine. But if it drops to 15% when historically 40%, flag it.
+    // Uses confluence relationships when defined (downstream = sum of inputs)
+    // Falls back to adjacent site comparison with historical ratios
     if (dr.type === "mainstem" && dr.sites.length >= 2) {
       for (let i=0; i<dr.sites.length-1; i++) {
         const up=dr.sites[i], dn=dr.sites[i+1];
         if (!up || !dn) continue;
-        const upQ=current[up.id]?.["00060"]?.value;
         const dnQ=current[dn.id]?.["00060"]?.value;
-        if (!upQ || !dnQ || upQ<=0) continue;
+        if (!dnQ) continue;
 
-        // Get historical flows for both sites on this date
-        const upHist=stats[up.id]?.["00060"]?.[today];
-        const dnHist=stats[dn.id]?.["00060"]?.[today];
+        // Check if this downstream site has a confluence definition
+        const confluence = CONFLUENCES.find(c => c.downstream === dn.id);
 
-        // Current ratio (downstream / upstream)
-        const currentRatio = dnQ / upQ;
+        if (confluence) {
+          // Sum of inputs approach
+          let inputSum = 0;
+          let inputHistSum = 0;
+          let allInputsHaveData = true;
+          let inputNames = [];
 
-        if (upHist && dnHist && upHist.value > 0) {
-          // Historical ratio for this date
-          const histRatio = dnHist.value / upHist.value;
+          for (const inputId of confluence.inputs) {
+            const inputQ = current[inputId]?.["00060"]?.value;
+            const inputHist = stats[inputId]?.["00060"]?.[today];
+            if (inputQ) {
+              inputSum += inputQ;
+              // Find name
+              for (const d2 of DRAINAGES) {
+                const found = d2.sites.find(s => s && s.id === inputId);
+                if (found) { inputNames.push(`${found.name}: ${inputQ.toFixed(0)}`); break; }
+              }
+            } else { allInputsHaveData = false; }
+            if (inputHist) { inputHistSum += inputHist.value; }
+          }
 
-          // How different is today's ratio from the historical ratio?
+          if (!allInputsHaveData || inputSum <= 0) continue;
+
+          // Compare: downstream should roughly equal sum of inputs
+          // Use historical ratio if available
+          const dnHist = stats[dn.id]?.["00060"]?.[today];
+          const currentRatio = dnQ / inputSum;
+          let histRatio = 1.0; // expect 1:1 by default (downstream = sum)
+          if (dnHist && inputHistSum > 0) {
+            histRatio = dnHist.value / inputHistSum;
+          }
+
           const ratioDiff = currentRatio - histRatio;
           const ratioPctChange = histRatio > 0 ? (ratioDiff / histRatio) * 100 : 0;
 
-          // Only flag if the ratio has changed substantially from historical norm
           if (Math.abs(ratioPctChange) >= 30 && Math.abs(ratioDiff) >= 0.15) {
             const sev = Math.abs(ratioPctChange)>=60?"critical":Math.abs(ratioPctChange)>=45?"high":"medium";
             const direction = ratioDiff < 0 ? "less" : "more";
             anomalies.push({siteId:dn.id, siteName:dn.name, drainage:dr.name, severity:sev,
               type:`Unusual upstream/downstream relationship`,
-              detail:`${dn.name} is ${(currentRatio*100).toFixed(0)}% of ${up.name} flow today, but historically it's ${(histRatio*100).toFixed(0)}% on ${today}. The ratio is ${Math.abs(ratioPctChange).toFixed(0)}% ${direction} than expected. (Current: ${dnQ.toFixed(0)}/${upQ.toFixed(0)} cfs, Historical: ${dnHist.value.toFixed(0)}/${upHist.value.toFixed(0)} cfs)`
+              detail:`${dn.name} (${dnQ.toFixed(0)} cfs) vs sum of inputs (${inputSum.toFixed(0)} cfs: ${inputNames.join(" + ")}). Ratio is ${(currentRatio*100).toFixed(0)}% today vs historical ${(histRatio*100).toFixed(0)}%. ${Math.abs(ratioPctChange).toFixed(0)}% ${direction} than expected.`
             });
           }
         } else {
-          // No historical data - only flag truly extreme cases
-          if (dnQ < upQ) {
-            const deficit = ((upQ-dnQ)/upQ)*100;
-            if (deficit >= 50) {
-              anomalies.push({siteId:dn.id, siteName:dn.name, drainage:dr.name, severity:"medium",
-                type:"Downstream flow significantly less than upstream (no historical ratio available)",
-                detail:`${dn.name} (${dnQ.toFixed(0)} cfs) has ${deficit.toFixed(0)}% less flow than ${up.name} (${upQ.toFixed(0)} cfs). No historical ratio data to confirm if normal.`
+          // Standard adjacent site comparison (no confluence defined)
+          const upQ=current[up.id]?.["00060"]?.value;
+          if (!upQ || upQ<=0) continue;
+
+          const upHist=stats[up.id]?.["00060"]?.[today];
+          const dnHist=stats[dn.id]?.["00060"]?.[today];
+          const currentRatio = dnQ / upQ;
+
+          if (upHist && dnHist && upHist.value > 0) {
+            const histRatio = dnHist.value / upHist.value;
+            const ratioDiff = currentRatio - histRatio;
+            const ratioPctChange = histRatio > 0 ? (ratioDiff / histRatio) * 100 : 0;
+
+            if (Math.abs(ratioPctChange) >= 30 && Math.abs(ratioDiff) >= 0.15) {
+              const sev = Math.abs(ratioPctChange)>=60?"critical":Math.abs(ratioPctChange)>=45?"high":"medium";
+              const direction = ratioDiff < 0 ? "less" : "more";
+              anomalies.push({siteId:dn.id, siteName:dn.name, drainage:dr.name, severity:sev,
+                type:`Unusual upstream/downstream relationship`,
+                detail:`${dn.name} is ${(currentRatio*100).toFixed(0)}% of ${up.name} flow today, but historically it's ${(histRatio*100).toFixed(0)}% on ${today}. The ratio is ${Math.abs(ratioPctChange).toFixed(0)}% ${direction} than expected. (Current: ${dnQ.toFixed(0)}/${upQ.toFixed(0)} cfs, Historical: ${dnHist.value.toFixed(0)}/${upHist.value.toFixed(0)} cfs)`
               });
+            }
+          } else {
+            // No historical data - only flag extreme cases
+            if (dnQ < upQ) {
+              const deficit = ((upQ-dnQ)/upQ)*100;
+              if (deficit >= 50) {
+                anomalies.push({siteId:dn.id, siteName:dn.name, drainage:dr.name, severity:"medium",
+                  type:"Downstream flow significantly less than upstream (no historical ratio available)",
+                  detail:`${dn.name} (${dnQ.toFixed(0)} cfs) has ${deficit.toFixed(0)}% less flow than ${up.name} (${upQ.toFixed(0)} cfs). No historical ratio data to confirm if normal.`
+                });
+              }
             }
           }
         }
       }
-
       // Also check temperature progression along the mainstem vs historical
       for (let i=0; i<dr.sites.length-1; i++) {
         const up=dr.sites[i], dn=dr.sites[i+1];
@@ -1947,7 +2009,7 @@ async function showAnomalyGraph(anomaly) {
     }
     if (!sitesToPlot.length) sitesToPlot = [{id:anomaly.siteId, name:anomaly.siteName}];
 
-    const colors = ["#94a3b8","#64748b","#2563eb","#059669","#7c3aed"];
+    const colors = ["#dc2626","#ea580c","#2563eb","#059669","#7c3aed"];
     const datasets = [];
 
     for (let i = 0; i < sitesToPlot.length; i++) {
