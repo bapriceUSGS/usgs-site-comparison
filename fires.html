@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>USGS MT-WY Fire & Safety Monitor</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="all_sites_config.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f0f4f8;
+            color: #1a1a2e;
+            padding: 20px;
+            line-height: 1.5;
+        }
+        .container { max-width: 1400px; margin: 0 auto; }
+        header {
+            background: #1a1a2e;
+            color: white;
+            padding: 20px 30px;
+            border-radius: 0 0 8px 8px;
+            margin-bottom: 20px;
+        }
+        header h1 { font-size: 1.5em; margin-bottom: 5px; }
+        header p { opacity: 0.8; font-size: 0.9em; }
+        .status-bar {
+            background: #e2e8f0;
+            padding: 10px 15px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            font-size: 0.85em;
+        }
+        .status-bar.loading { background: #fef3c7; }
+        .status-bar.error { background: #fee2e2; color: #991b1b; }
+        .status-bar.success { background: #d1fae5; color: #065f46; }
+        #fireMap { height: 600px; width: 100%; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .section {
+            background: white;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .section-header {
+            background: #1e293b;
+            color: white;
+            padding: 12px 20px;
+            font-weight: 600;
+        }
+        .section-body { padding: 15px 20px; overflow-x: auto; }
+        .fire-table { width: 100%; border-collapse: collapse; font-size: 0.85em; }
+        .fire-table th {
+            text-align: left; padding: 8px 10px;
+            border-bottom: 2px solid #e2e8f0; font-weight: 600; color: #475569;
+        }
+        .fire-table td { padding: 8px 10px; border-bottom: 1px solid #f1f5f9; }
+        .fire-table tr:hover { background: #f8fafc; }
+        .proximity-alert {
+            border-left: 4px solid #dc2626;
+            background: #fef2f2;
+            padding: 10px 15px;
+            margin: 8px 0;
+            border-radius: 0 5px 5px 0;
+            font-size: 0.85em;
+        }
+        .proximity-alert .alert-title { font-weight: 600; color: #991b1b; margin-bottom: 3px; }
+        .proximity-alert .alert-detail { color: #64748b; }
+        .no-data { color: #94a3b8; font-style: italic; padding: 20px; text-align: center; }
+        .map-legend {
+            background: white;
+            padding: 10px 14px;
+            border-radius: 5px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+            font-size: 0.8em;
+            line-height: 2;
+        }
+        .map-legend i {
+            width: 12px; height: 12px;
+            display: inline-block;
+            border-radius: 50%;
+            margin-right: 6px;
+            vertical-align: middle;
+        }
+        .map-legend .poly-icon {
+            width: 14px; height: 10px;
+            display: inline-block;
+            border: 2px solid #dc2626;
+            background: rgba(220,38,38,0.25);
+            margin-right: 6px;
+            vertical-align: middle;
+            border-radius: 2px;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div style="background:#334155;padding:8px 20px;border-radius:8px 8px 0 0;display:flex;gap:15px;font-size:0.85em;flex-wrap:wrap;align-items:center">
+        <a href="index.html" style="color:#94a3b8;text-decoration:none">Discharge &amp; Temperature</a>
+        <a href="qw.html" style="color:#94a3b8;text-decoration:none">Water Quality</a>
+        <a href="fires.html" style="color:white;text-decoration:none;font-weight:600;border-bottom:2px solid white;padding-bottom:2px">Safety</a>
+    </div>
+    <header>
+        <h1>MT-WY Fire & Safety Monitor</h1>
+        <p>Active wildfire incidents and perimeters near USGS field sites in Montana and Wyoming</p>
+    </header>
+    <div id="statusBar" class="status-bar loading">Loading fire and gage data...</div>
+    <div id="fireMap"></div>
+    <div id="fireTableSection" class="section" style="display:none">
+        <div class="section-header">Active Fires</div>
+        <div class="section-body" id="fireTableBody"></div>
+    </div>
+    <div id="proximitySection" class="section" style="display:none">
+        <div class="section-header">Gages Near Active Fires (within 20 miles)</div>
+        <div class="section-body" id="proximityBody"></div>
+    </div>
+</div>
+<script>
+// ===== GAGE LOCATIONS (loaded dynamically from all_sites_config.js DRAINAGES) =====
+let GAGES = []; // Will be populated with {id, name, lat, lon} from USGS site service
+
+// Extract all unique site IDs from the DRAINAGES config
+function getAllSiteIds() {
+    const ids = new Set();
+    for (const drainage of DRAINAGES) {
+        for (const site of drainage.sites) {
+            ids.add(site.id);
+        }
+    }
+    return [...ids];
+}
+
+// Build a name lookup from DRAINAGES
+function getSiteNameMap() {
+    const map = {};
+    for (const drainage of DRAINAGES) {
+        for (const site of drainage.sites) {
+            map[site.id] = site.name;
+        }
+    }
+    return map;
+}
+
+// Fetch site coordinates from USGS site service in batches
+async function fetchSiteCoordinates(siteIds) {
+    const results = []; // {id, name, lat, lon}
+    const nameMap = getSiteNameMap();
+    const batchSize = 100; // USGS site service handles up to ~100 sites per request
+
+    for (let i = 0; i < siteIds.length; i += batchSize) {
+        const batch = siteIds.slice(i, i + batchSize);
+        try {
+            const url = `https://waterservices.usgs.gov/nwis/site/?format=rdb&sites=${batch.join(',')}&siteOutput=expanded&siteStatus=all`;
+            const resp = await fetch(url);
+            if (!resp.ok) continue;
+            const text = await resp.text();
+            const lines = text.split('\n');
+            let headers = null;
+            let skipNext = true;
+            for (const line of lines) {
+                if (line.startsWith('#')) continue;
+                if (!headers) { headers = line.split('\t'); skipNext = true; continue; }
+                if (skipNext) { skipNext = false; continue; }
+                if (!line.trim()) continue;
+                const fields = line.split('\t');
+                const siteNoIdx = headers.indexOf('site_no');
+                const latIdx = headers.indexOf('dec_lat_va');
+                const lonIdx = headers.indexOf('dec_long_va');
+                const nameIdx = headers.indexOf('station_nm');
+                if (siteNoIdx < 0 || latIdx < 0 || lonIdx < 0) continue;
+                const siteNo = fields[siteNoIdx]?.trim();
+                const lat = parseFloat(fields[latIdx]);
+                const lon = parseFloat(fields[lonIdx]);
+                const fetchedName = fields[nameIdx]?.trim();
+                if (!siteNo || isNaN(lat) || isNaN(lon)) continue;
+                results.push({
+                    id: siteNo,
+                    name: nameMap[siteNo] || fetchedName || siteNo,
+                    lat: lat,
+                    lon: lon
+                });
+            }
+        } catch(e) {
+            console.warn('Site coordinates batch error:', e);
+            continue;
+        }
+    }
+    return results;
+}
+
+// ===== FIRE DATA FETCHING =====
+let fireMap = null;
+let fireIncidents = [];
+
+async function fetchFireIncidents() {
+    const url = 'https://services3.arcgis.com/T4QMspbfLg3qTGWY/arcgis/rest/services/WFIGS_Incident_Locations_Current/FeatureServer/0/query';
+    const params = new URLSearchParams({
+        where: "POOState IN ('US-MT','US-WY')",
+        outFields: 'IncidentName,DailyAcres,PercentContained,FireDiscoveryDateTime,POOState',
+        f: 'json',
+        returnGeometry: 'true'
+    });
+    try {
+        const resp = await fetch(`${url}?${params}`);
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const data = await resp.json();
+        return (data.features || []).map(f => ({
+            name: f.attributes.IncidentName,
+            acres: f.attributes.DailyAcres,
+            pctContained: f.attributes.PercentContained,
+            discoveryDate: f.attributes.FireDiscoveryDateTime,
+            state: f.attributes.POOState === 'US-MT' ? 'Montana' : 'Wyoming',
+            lat: f.geometry?.y,
+            lon: f.geometry?.x
+        })).filter(f => f.lat && f.lon);
+    } catch(e) {
+        console.warn('Fire incidents fetch error:', e);
+        return [];
+    }
+}
+
+async function fetchFirePerimeters() {
+    const url = 'https://services3.arcgis.com/T4QMspbfLg3qTGWY/arcgis/rest/services/WFIGS_Interagency_Perimeters/FeatureServer/0/query';
+    const params = new URLSearchParams({
+        where: "attr_POOState IN ('US-MT','US-WY')",
+        outFields: 'poly_IncidentName,poly_GISAcres',
+        f: 'geojson',
+        returnGeometry: 'true'
+    });
+    try {
+        const resp = await fetch(`${url}?${params}`);
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const data = await resp.json();
+        return data;
+    } catch(e) {
+        console.warn('Fire perimeters fetch error:', e);
+        return null;
+    }
+}
+
+// ===== DISTANCE CALCULATION =====
+function haversineDistance(lat1, lon1, lat2, lon2) {
+    const R = 3958.8; // Earth radius in miles
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
+}
+
+// ===== MAP BUILDING =====
+function buildMap(incidents, perimetersGeoJSON) {
+    if (fireMap) { fireMap.remove(); fireMap = null; }
+    fireMap = L.map('fireMap').setView([46, -109], 6);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors',
+        maxZoom: 15
+    }).addTo(fireMap);
+
+    // Add fire perimeters (GeoJSON polygons)
+    if (perimetersGeoJSON && perimetersGeoJSON.features) {
+        L.geoJSON(perimetersGeoJSON, {
+            style: {
+                color: '#dc2626',
+                weight: 2,
+                fillColor: '#dc2626',
+                fillOpacity: 0.2
+            },
+            onEachFeature: function(feature, layer) {
+                const props = feature.properties || {};
+                const name = props.poly_IncidentName || 'Unknown';
+                const acres = props.poly_GISAcres;
+                layer.bindPopup(`<b>${name}</b><br>Acres: ${acres ? acres.toLocaleString() : 'N/A'}`);
+            }
+        }).addTo(fireMap);
+    }
+
+    // Add fire incidents as circle markers (size based on acres)
+    for (const fire of incidents) {
+        const radius = fire.acres ? Math.max(6, Math.min(20, Math.sqrt(fire.acres) / 10)) : 6;
+        const marker = L.circleMarker([fire.lat, fire.lon], {
+            radius: radius,
+            fillColor: '#f97316',
+            color: '#dc2626',
+            weight: 2,
+            fillOpacity: 0.7
+        }).addTo(fireMap);
+        const discoveryStr = fire.discoveryDate
+            ? new Date(fire.discoveryDate).toLocaleDateString()
+            : 'Unknown';
+        marker.bindPopup(`<b>${fire.name}</b><br>Acres: ${fire.acres ? fire.acres.toLocaleString() : 'N/A'}<br>% Contained: ${fire.pctContained != null ? fire.pctContained + '%' : 'N/A'}<br>Discovery Date: ${discoveryStr}`);
+    }
+
+    // Add gage locations as blue circles
+    for (const gage of GAGES) {
+        const marker = L.circleMarker([gage.lat, gage.lon], {
+            radius: 5,
+            fillColor: '#2563eb',
+            color: '#1e3a5f',
+            weight: 1,
+            fillOpacity: 0.8
+        }).addTo(fireMap);
+        marker.bindPopup(`<b>${gage.name}</b><br>Site Number: ${gage.id}`);
+    }
+
+    // Add legend
+    const legend = L.control({position: 'bottomright'});
+    legend.onAdd = function() {
+        const div = L.DomUtil.create('div', 'map-legend');
+        div.innerHTML = `
+            <i style="background:#2563eb"></i> USGS Gages<br>
+            <i style="background:#f97316;border:2px solid #dc2626"></i> Fire Incidents<br>
+            <span class="poly-icon"></span> Fire Perimeters`;
+        return div;
+    };
+    legend.addTo(fireMap);
+}
+
+// ===== TABLE RENDERING =====
+function renderFireTable(incidents) {
+    const section = document.getElementById('fireTableSection');
+    const body = document.getElementById('fireTableBody');
+    if (!incidents.length) {
+        section.style.display = 'block';
+        body.innerHTML = '<div class="no-data">No active fires reported in MT/WY at this time.</div>';
+        return;
+    }
+    section.style.display = 'block';
+    let html = `<table class="fire-table">
+        <thead><tr>
+            <th>Fire Name</th>
+            <th style="text-align:right">Acres</th>
+            <th style="text-align:right">% Contained</th>
+            <th>State</th>
+            <th>Discovery Date</th>
+        </tr></thead><tbody>`;
+    const sorted = [...incidents].sort((a,b) => (b.acres||0) - (a.acres||0));
+    for (const fire of sorted) {
+        const discoveryStr = fire.discoveryDate
+            ? new Date(fire.discoveryDate).toLocaleDateString()
+            : '—';
+        html += `<tr>
+            <td><strong>${fire.name}</strong></td>
+            <td style="text-align:right;font-family:monospace">${fire.acres ? fire.acres.toLocaleString() : '—'}</td>
+            <td style="text-align:right">${fire.pctContained != null ? fire.pctContained + '%' : '—'}</td>
+            <td>${fire.state}</td>
+            <td>${discoveryStr}</td>
+        </tr>`;
+    }
+    html += '</tbody></table>';
+    body.innerHTML = html;
+}
+
+// ===== PROXIMITY ALERTS =====
+function renderProximityAlerts(incidents) {
+    const section = document.getElementById('proximitySection');
+    const body = document.getElementById('proximityBody');
+    const alerts = [];
+
+    for (const gage of GAGES) {
+        for (const fire of incidents) {
+            const dist = haversineDistance(gage.lat, gage.lon, fire.lat, fire.lon);
+            if (dist <= 20) {
+                alerts.push({
+                    gageName: gage.name,
+                    gageId: gage.id,
+                    fireName: fire.name,
+                    fireAcres: fire.acres,
+                    distance: dist
+                });
+            }
+        }
+    }
+
+    if (!alerts.length) {
+        section.style.display = 'block';
+        body.innerHTML = '<div class="no-data">No gages are currently within 20 miles of an active fire.</div>';
+        return;
+    }
+
+    section.style.display = 'block';
+    alerts.sort((a,b) => a.distance - b.distance);
+    let html = '';
+    for (const alert of alerts) {
+        html += `<div class="proximity-alert">
+            <div class="alert-title">${alert.gageName} (${alert.gageId})</div>
+            <div class="alert-detail">${alert.distance.toFixed(1)} miles from <strong>${alert.fireName}</strong> (${alert.fireAcres ? alert.fireAcres.toLocaleString() + ' acres' : 'size unknown'})</div>
+        </div>`;
+    }
+    body.innerHTML = html;
+}
+
+// ===== MAIN =====
+async function main() {
+    const statusBar = document.getElementById('statusBar');
+    try {
+        statusBar.className = 'status-bar loading';
+        statusBar.textContent = 'Fetching gage site coordinates from USGS...';
+
+        // Fetch all site coordinates from USGS site service
+        const allSiteIds = getAllSiteIds();
+        GAGES = await fetchSiteCoordinates(allSiteIds);
+
+        statusBar.textContent = `Loaded ${GAGES.length} gage locations. Fetching active fire incidents from NIFC...`;
+
+        const [incidents, perimeters] = await Promise.all([
+            fetchFireIncidents(),
+            fetchFirePerimeters()
+        ]);
+
+        fireIncidents = incidents;
+        statusBar.textContent = 'Building map...';
+
+        buildMap(incidents, perimeters);
+        renderFireTable(incidents);
+        renderProximityAlerts(incidents);
+
+        const perimCount = perimeters?.features?.length || 0;
+        const now = new Date().toLocaleString();
+        if (incidents.length === 0 && perimCount === 0) {
+            statusBar.className = 'status-bar success';
+            statusBar.textContent = `No active fires reported in MT/WY. ${GAGES.length} gages mapped. Last checked: ${now}`;
+        } else {
+            statusBar.className = 'status-bar error';
+            statusBar.textContent = `${incidents.length} active fire incident(s), ${perimCount} perimeter(s) in MT/WY. ${GAGES.length} gages mapped. Last updated: ${now}`;
+        }
+    } catch(e) {
+        statusBar.className = 'status-bar error';
+        statusBar.textContent = `Error loading data: ${e.message}`;
+        console.error(e);
+        // Still build map with whatever gages we have
+        buildMap([], null);
+    }
+}
+
+main();
+</script>
+</body>
+</html>
