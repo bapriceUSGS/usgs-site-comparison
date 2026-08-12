@@ -1,0 +1,422 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>USGS MT-WY Fire & Safety Monitor</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f0f4f8;
+            color: #1a1a2e;
+            padding: 20px;
+            line-height: 1.5;
+        }
+        .container { max-width: 1400px; margin: 0 auto; }
+        header {
+            background: #1a1a2e;
+            color: white;
+            padding: 20px 30px;
+            border-radius: 0 0 8px 8px;
+            margin-bottom: 20px;
+        }
+        header h1 { font-size: 1.5em; margin-bottom: 5px; }
+        header p { opacity: 0.8; font-size: 0.9em; }
+        .status-bar {
+            background: #e2e8f0;
+            padding: 10px 15px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            font-size: 0.85em;
+        }
+        .status-bar.loading { background: #fef3c7; }
+        .status-bar.error { background: #fee2e2; color: #991b1b; }
+        .status-bar.success { background: #d1fae5; color: #065f46; }
+        #fireMap { height: 600px; width: 100%; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .section {
+            background: white;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .section-header {
+            background: #1e293b;
+            color: white;
+            padding: 12px 20px;
+            font-weight: 600;
+        }
+        .section-body { padding: 15px 20px; overflow-x: auto; }
+        .fire-table { width: 100%; border-collapse: collapse; font-size: 0.85em; }
+        .fire-table th {
+            text-align: left; padding: 8px 10px;
+            border-bottom: 2px solid #e2e8f0; font-weight: 600; color: #475569;
+        }
+        .fire-table td { padding: 8px 10px; border-bottom: 1px solid #f1f5f9; }
+        .fire-table tr:hover { background: #f8fafc; }
+        .proximity-alert {
+            border-left: 4px solid #dc2626;
+            background: #fef2f2;
+            padding: 10px 15px;
+            margin: 8px 0;
+            border-radius: 0 5px 5px 0;
+            font-size: 0.85em;
+        }
+        .proximity-alert .alert-title { font-weight: 600; color: #991b1b; margin-bottom: 3px; }
+        .proximity-alert .alert-detail { color: #64748b; }
+        .no-data { color: #94a3b8; font-style: italic; padding: 20px; text-align: center; }
+        .map-legend {
+            background: white;
+            padding: 10px 14px;
+            border-radius: 5px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+            font-size: 0.8em;
+            line-height: 2;
+        }
+        .map-legend i {
+            width: 12px; height: 12px;
+            display: inline-block;
+            border-radius: 50%;
+            margin-right: 6px;
+            vertical-align: middle;
+        }
+        .map-legend .poly-icon {
+            width: 14px; height: 10px;
+            display: inline-block;
+            border: 2px solid #dc2626;
+            background: rgba(220,38,38,0.25);
+            margin-right: 6px;
+            vertical-align: middle;
+            border-radius: 2px;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div style="background:#334155;padding:8px 20px;border-radius:8px 8px 0 0;display:flex;gap:15px;font-size:0.85em;flex-wrap:wrap;align-items:center">
+        <a href="index.html" style="color:#94a3b8;text-decoration:none">Discharge &amp; Temperature</a>
+        <a href="qw.html" style="color:#94a3b8;text-decoration:none">Water Quality</a>
+        <a href="fires.html" style="color:white;text-decoration:none;font-weight:600;border-bottom:2px solid white;padding-bottom:2px">Safety</a>
+    </div>
+    <header>
+        <h1>MT-WY Fire & Safety Monitor</h1>
+        <p>Active wildfire incidents and perimeters near USGS field sites in Montana and Wyoming</p>
+    </header>
+    <div id="statusBar" class="status-bar loading">Loading fire and gage data...</div>
+    <div id="fireMap"></div>
+    <div id="fireTableSection" class="section" style="display:none">
+        <div class="section-header">Active Fires</div>
+        <div class="section-body" id="fireTableBody"></div>
+    </div>
+    <div id="proximitySection" class="section" style="display:none">
+        <div class="section-header">Gages Near Active Fires (within 20 miles)</div>
+        <div class="section-body" id="proximityBody"></div>
+    </div>
+</div>
+<script>
+// All 416 USGS gage sites monitored by MT-WY WSC (embedded for portability)
+const ALL_SITE_IDS = [{id:"06006000",name:"Red Rock Cr ab Lakes, nr Lakeview, MT"},{id:"06012500",name:"Red Rock R bl Lima Reservoir nr Monida MT"},{id:"06015430",name:"Clark Canyon near Dillon MT"},{id:"06015460",name:"Farlin Creek near Polaris, MT"},{id:"06015480",name:"Grasshopper Creek tributary near Dillon, MT"},{id:"06016000",name:"Beaverhead River at Barretts MT"},{id:"06017000",name:"Beaverhead River at Dillon MT"},{id:"06018500",name:"Beaverhead River near Twin Bridges MT"},{id:"06019500",name:"Ruby River above reservoir near Alder, MT"},{id:"06020600",name:"Ruby River below reservoir near Alder, MT"},{id:"06023000",name:"Ruby River near Twin Bridges MT"},{id:"06023100",name:"Beaverhead River at Twin Bridges, MT"},{id:"06024100",name:"Fox Gulch near Jackson, MT"},{id:"06024450",name:"Big Hole River bl Big Lake Cr at Wisdom MT"},{id:"06024540",name:"Big Hole River bl Mudd Cr nr Wisdom MT"},{id:"06024580",name:"Big Hole River near Wise River MT"},{id:"06025100",name:"Quartz Hill Gulch near Wise River MT"},{id:"06025250",name:"Big Hole River at Maiden Rock nr Divide MT"},{id:"06025500",name:"Big Hole River near Melrose MT"},{id:"06026210",name:"Big Hole River near Glen MT"},{id:"06026420",name:"Big Hole R bl Hamilton Ditch nr Twin Bridges, MT"},{id:"06026500",name:"Jefferson River near Twin Bridges, MT"},{id:"06027600",name:"Jefferson River at Parsons Bdg nr Silver Star, MT"},{id:"06031950",name:"Cataract Creek near Basin MT"},{id:"06033000",name:"Boulder River near Boulder, MT"},{id:"06034700",name:"Sand Creek at Sappington, MT"},{id:"06035000",name:"Willow Creek near Harrison MT"},{id:"06036650",name:"Jefferson River near Three Forks MT"},{id:"06036805",name:"Firehole River at Old Faithful, YNP"},{id:"06036905",name:"Firehole River near West Yellowstone MT"},{id:"06036940",name:"Tantalus Creek at Norris Junction, YNP"},{id:"06037100",name:"Gibbon River at Madison Jct, YNP"},{id:"06037500",name:"Madison River near West Yellowstone, MT"},{id:"06038500",name:"Madison River bl Hebgen Lake nr Grayling MT"},{id:"06038550",name:"Cabin Creek near West Yellowstone MT"},{id:"06038800",name:"Madison River at Kirby Ranch nr Cameron MT"},{id:"06040000",name:"Madison River near Cameron MT"},{id:"06040050",name:"Madison River at Ennis, MT"},{id:"06040800",name:"Madison River ab powerplant nr McAllister MT"},{id:"06041000",name:"Madison River bl Ennis Lake nr McAllister MT"},{id:"06041500",name:"Madison River near Norris MT"},{id:"06043120",name:"Gallatin River above Deer Creek, near Big Sky, MT"},{id:"06043300",name:"Logger Creek near Gallatin Gateway MT"},{id:"06043500",name:"Gallatin River near Gallatin Gateway, MT"},{id:"06048650",name:"E Gallatin R ab Water Reclamation Fa nr Bozeman MT"},{id:"06050000",name:"Hyalite C at Hyalite R S nr Bozeman MT"},{id:"06052500",name:"Gallatin River at Logan MT"},{id:"06061500",name:"Prickly Pear Creek near Clancy MT"},{id:"06062500",name:"Tenmile Creek near Rimini MT"},{id:"06063000",name:"Tenmile Creek near Helena MT"},{id:"06071300",name:"Little Prickly Pear Cr at Wolf Cr MT"},{id:"06071400",name:"Dog Creek near Craig, MT"},{id:"06073500",name:"Dearborn River near Craig MT"},{id:"06073600",name:"Black Rock Creek near Augusta MT"},{id:"06053050",name:"Lost Creek near Ringling MT"},{id:"06054500",name:"Missouri River at Toston MT"},{id:"06056200",name:"Castle Creek Tributary near Ringling, MT"},{id:"06056300",name:"Cabin Creek near Townsend MT"},{id:"06065500",name:"Missouri River bl Hauser Dam near Helena MT"},{id:"06066500",name:"Missouri River bl Holter Dam nr Wolf Cr MT"},{id:"06074000",name:"Missouri River at Cascade MT"},{id:"06078200",name:"Missouri River near Ulm MT"},{id:"06090300",name:"Missouri River near Great Falls MT"},{id:"06090500",name:"Belt Creek near Monarch MT"},{id:"06090550",name:"Little Otter Creek near Raynesford MT"},{id:"06076690",name:"Smith River near Ft Logan MT"},{id:"06077200",name:"Smith River bl Eagle Cr nr Fort Logan MT"},{id:"06077500",name:"Smith River near Eden MT"},{id:"06078500",name:"North Fork Sun River near Augusta MT"},{id:"06079000",name:"South Fork Sun River near Augusta MT"},{id:"06080900",name:"Sun River bl Diversion Dam nr Augusta MT"},{id:"06082200",name:"Sun River bl Willow Cr nr Augusta MT"},{id:"06085510",name:"Crown Butte creek tributary nr Simms, MT"},{id:"06085800",name:"Sun River at Simms MT"},{id:"06088500",name:"Muddy Creek at Vaughn MT"},{id:"06089000",name:"Sun River near Vaughn MT"},{id:"06090800",name:"Missouri River at Fort Benton MT"},{id:"06109500",name:"Missouri River at Virgelle MT"},{id:"06109600",name:"Chip Creek Trib near Winifred, MT"},{id:"06115200",name:"Missouri River near Landusky MT"},{id:"06091700",name:"Two Medicine River bl South Fork nr Browning MT"},{id:"06092020",name:"Two Medicine River ab Badger Cr, nr Piegan, MT"},{id:"06093200",name:"Badger Cr bl Four Horns Canal nr Browning MT"},{id:"06094900",name:"Birch Cr bl Heart Butte Road, nr Heart Butte, MT"},{id:"06097000",name:"Birch Creek at Robare, MT"},{id:"06097300",name:"Cartwright Coulee nr Dupuyer"},{id:"06098120",name:"Birch Creek at Bullhead Bridge, nr Valier, MT"},{id:"06098700",name:"Powell Coulee near Browning MT"},{id:"06098800",name:"Cut Bank Cr ab Gillam Coulee, nr Sundance, MT"},{id:"06099000",name:"Cut Bank Creek at Cut Bank MT"},{id:"06099500",name:"Marias River near Shelby MT"},{id:"06100300",name:"Lone Man Coulee near Valier MT"},{id:"06101200",name:"Willow Creek near Galata, MT"},{id:"06101500",name:"Marias River near Chester MT"},{id:"06101520",name:"Favot Coulee trib near Ledger MT"},{id:"06101630",name:"Marias River at Highway 223 bridge near Chester,MT"},{id:"06102050",name:"Marias River near Loma MT"},{id:"06102500",name:"Teton River bl South Fork nr Choteau MT"},{id:"06108800",name:"Teton River at Loma MT"},{id:"06110020",name:"Judith River above Carr Creek near Utica MT"},{id:"06111800",name:"Big Spring Cr at R&B Trading Post nr Lewistown MT"},{id:"06114550",name:"Wolf Creek trib near Coffee Creek MT"},{id:"06114700",name:"Judith River nr mouth, nr Winifred MT"},{id:"06119600",name:"Musselshell River nr Martinsdale, MT"},{id:"06120500",name:"Musselshell River at Harlowton MT"},{id:"06120900",name:"Antelope Creek at Harlowton, MT"},{id:"06123030",name:"Musselshell River ab Mud Cr nr Shawmut MT"},{id:"06123200",name:"Sadie Cr tributary nr Harlowton MT"},{id:"06125600",name:"Musselshell River ab Big Coulee Creek at Lavina MT"},{id:"06126500",name:"Musselshell River near Roundup MT"},{id:"06127500",name:"Musselshell River at Musselshell MT"},{id:"06128500",name:"South Fork Bear Cr Tributary nr Roy MT"},{id:"06130000",name:"Flatwillow Creek near Mosby MT"},{id:"06130500",name:"Musselshell River at Mosby MT"},{id:"06130610",name:"Bair Coulee near Mosby MT"},{id:"06130630",name:"Crooked Creek Tributary nr Roy, MT"},{id:"06130915",name:"Russian Coulee near Jordan MT"},{id:"06131200",name:"Nelson Creek near Van Norman MT"},{id:"06131300",name:"Mcguire Creek trib near Van Norman MT"},{id:"06133000",name:"Milk River at western crossing of int'l boundary"},{id:"06133500",name:"N F Milk River ab St. Mary canal nr Browning MT"},{id:"06134000",name:"North Milk River near international boundary"},{id:"06134500",name:"Milk River at Milk River Alberta"},{id:"06135000",name:"Milk River at Eastern Crossing of Int Bndry"},{id:"06137570",name:"Boxelder Creek near Rocky Boy, MT"},{id:"06137572",name:"Boxelder Cr bl Boneau Reservoir, nr Rocky Boy, MT"},{id:"06137574",name:"Boxelder Cr bl Brown's Res Div, nr Box Elder, MT"},{id:"06137575",name:"Boxelder Creek at Box Elder, MT"},{id:"06137600",name:"Sage Creek trib no 2 near Joplin MT"},{id:"06138580",name:"Big Sandy Cr ab Spring Coulee, nr Laredo, MT"},{id:"06139500",name:"Big Sandy Creek near Havre MT"},{id:"06139800",name:"West Fork Beaver Creek nr Rocky Boy, MT"},{id:"06139850",name:"Beaver Creek ab Elk Creek, nr Rocky Boy, MT"},{id:"06139900",name:"Beaver Cr at Res Bndry nr Rocky Boy MT"},{id:"06140500",name:"Milk River at Havre MT"},{id:"06142400",name:"Clear Creek near Chinook MT"},{id:"06143900",name:"Redrock Coulee near Chinook, MT"},{id:"06145500",name:"Lodge Creek below McRae Creek, at int'l boundary"},{id:"06146980",name:"Lodge Creek near Chinook, MT"},{id:"06149500",name:"Battle Creek at international boundary"},{id:"06151500",name:"Battle Creek near Chinook MT"},{id:"06153400",name:"Fifteenmile Creek trib near Zurich MT"},{id:"06153800",name:"Milk River at Merrill Rd, nr Harlem, MT"},{id:"06154100",name:"Milk River near Harlem MT"},{id:"06154350",name:"Peoples Creek trib near Lloyd MT"},{id:"06154390",name:"Peoples Creek near Cleveland, MT"},{id:"06154400",name:"Peoples Creek near Hays MT"},{id:"06154410",name:"Little Peoples Creek near Hays, MT"},{id:"06154430",name:"Lodge Pole Creek at Lodge Pole, MT"},{id:"06155030",name:"Milk River near Dodson MT"},{id:"06155500",name:"Milk River at Malta MT"},{id:"06156100",name:"Lush Coulee near Whitewater MT"},{id:"06164000",name:"Frenchman River at international boundary"},{id:"06164510",name:"Milk River at Juneberg Bridge nr Saco MT"},{id:"06164600",name:"Beaver Creek trib near Zortman MT"},{id:"06164623",name:"Little Warm Cr Tributary nr Lodge Pole MT"},{id:"06166000",name:"Beaver Cr bl Guston Coulee nr Saco MT"},{id:"06167500",name:"Beaver Creek near Hinsdale MT"},{id:"06169500",name:"Rock Creek bl Horse Creek nr int'l boundary"},{id:"06172300",name:"Unger Creek near Vandalia MT"},{id:"06172310",name:"Milk River at Tampico MT"},{id:"06174500",name:"Milk River at Nashua MT"},{id:"06175100",name:"Missouri R at W Frazer Pump Plant nr Frazer MT"},{id:"06175510",name:"Missouri R at E Frazer Pump Plant nr Frazer MT"},{id:"06177000",name:"Missouri River near Wolf Point MT"},{id:"06177020",name:"Tule Creek trib near Wolf Point MT"},{id:"06177100",name:"Duck Creek near Brockway, MT"},{id:"06177500",name:"Redwater River at Circle MT"},{id:"06177700",name:"Cow Creek Tributary near Vida, MT"},{id:"06177825",name:"Redwater River near Vida MT"},{id:"06185500",name:"Missouri River near Culbertson MT"},{id:"06178000",name:"Poplar River at international boundary"},{id:"06178500",name:"East Poplar River at international boundary"},{id:"06179100",name:"Butte Creek trib near Four Buttes MT"},{id:"06179200",name:"Poplar R ab W Fk Poplar R, nr Bredette, MT"},{id:"06181000",name:"Poplar River near Poplar MT"},{id:"06183450",name:"Big Muddy Creek near Antelope MT"},{id:"06184200",name:"Lost Creek trib near Homestead MT"},{id:"06185110",name:"Big Muddy Creek nr mouth nr Culbertson MT"},{id:"06186500",name:"Yellowstone River at Yellowstone Lk Outlet YNP"},{id:"06187915",name:"Soda Butte Cr at Park Bndry at Silver Gate"},{id:"06188000",name:"Lamar River nr Tower Ranger Station YNP"},{id:"06190540",name:"Boiling River at Mammoth,YNP"},{id:"06191000",name:"Gardner River near Mammoth, YNP"},{id:"06191500",name:"Yellowstone River at Corwin Springs MT"},{id:"06192500",name:"Yellowstone River near Livingston, MT"},{id:"06192978",name:"Shields River bl SF Shields River nr Wilsall, MT"},{id:"06195600",name:"Shields River nr Livingston MT"},{id:"06195750",name:"Yellowstone River at Springdale, MT"},{id:"06195950",name:"Yellowstone River at Big Timber, MT"},{id:"06197800",name:"East Boulder River bl Dry Fork Cr nr Mcleod, MT"},{id:"06200000",name:"Boulder River at Big Timber MT"},{id:"06204050",name:"West Rosebud Creek near Roscoe MT"},{id:"06204070",name:"W Rosebud Cr at Emerald Lk Campground nr Roscoe"},{id:"06204170",name:"Meadow Creek nr Dean, MT"},{id:"06205000",name:"Stillwater River near Absarokee, MT"},{id:"06207500",name:"Clarks Fork Yellowstone River nr Belfry MT"},{id:"06207800",name:"Bluewater Creek near Bridger, MT"},{id:"06208500",name:"Clarks Fork Yellowstone River at Edgar MT"},{id:"06209500",name:"Rock Creek near Red Lodge MT"},{id:"06210950",name:"Cole Creek near Red Lodge, MT"},{id:"06211000",name:"Red Lodge Cr ab Cooney Re nr Boyd MT"},{id:"06211500",name:"Willow Creek near Boyd MT"},{id:"06214500",name:"Yellowstone River at Billings MT"},{id:"06274300",name:"BIGHORN RIVER AT BASIN, WY"},{id:"06278300",name:"Shell Creek above Shell Reservoir, WY"},{id:"06279500",name:"BIGHORN RIVER AT KANE, WY"},{id:"06279940",name:"NORTH FORK SHOSHONE RIVER AT WAPITI, WY"},{id:"06280300",name:"SOUTH FORK SHOSHONE RIVER NEAR VALLEY, WY"},{id:"06281000",name:"SOUTH FORK SHOSHONE RIVER AB BUFFALO BILL RES, WY"},{id:"06285100",name:"SHOSHONE RIVER NEAR LOVELL, WY"},{id:"06287000",name:"Bighorn R bl Yellowtail Afterbay Dam nr St. Xavier"},{id:"06287800",name:"Bighorn River at bridge, at St. Xavier, MT"},{id:"06288400",name:"Bighorn River at Two Leggins Bridge, near Hardin"},{id:"06294400",name:"Andresen Coulee near Custer MT"},{id:"06294500",name:"Bighorn River ab Tullock Cr nr Bighorn MT"},{id:"06289000",name:"Little Bighorn River at State Line nr Wyola MT"},{id:"06290500",name:"Little Bighorn R bl Pass Cr nr Wyola MT"},{id:"06291500",name:"Lodge Grass Cr ab Willow Cr diversion, nr Wyola MT"},{id:"06293500",name:"Little Bighorn River nr Crow Agency MT"},{id:"06294000",name:"Little Bighorn River near Hardin MT"},{id:"06217300",name:"Twelvemile Creek near Shepherd MT"},{id:"06294930",name:"Sarpy Creek trib near Colstrip MT"},{id:"06295000",name:"Yellowstone River at Forsyth MT"},{id:"06296115",name:"Reservation Creek near Miles City MT"},{id:"06307520",name:"Canyon Creek near Birney, MT"},{id:"06307720",name:"Brian Creek near Ashland MT"},{id:"06308330",name:"Deer Creek trib near Volborg MT"},{id:"06309000",name:"Yellowstone River at Miles City, MT"},{id:"06309040",name:"Dry House Creek near Angela, MT"},{id:"06309080",name:"Deep Creek near Kinsey MT"},{id:"06324995",name:"Badger Creek at Biddle MT"},{id:"06325700",name:"Deep Creek near Powderville MT"},{id:"06326580",name:"Lame Jones Creek trib near Willard MT"},{id:"06326950",name:"Yellowstone River Tributary no. 5 nr Marsh MT"},{id:"06327450",name:"Cains Coulee at Glendive MT"},{id:"06327500",name:"Yellowstone River at Glendive, MT"},{id:"06327550",name:"South Fork Horse Cr trib nr Wibaux MT"},{id:"06327720",name:"Griffith Creek trib near Glendive MT"},{id:"06328100",name:"Yellowstone River trib no 6 nr Glendive MT"},{id:"06328495",name:"Yellowstone River Fish Bypass Channel nr Intake MT"},{id:"06329500",name:"Yellowstone River near Sidney MT"},{id:"06334330",name:"Little Missouri River trib nr Albion MT"},{id:"06295113",name:"Rosebud C at Reservation Bndry nr Kirby MT"},{id:"06295220",name:"Rosebud C Bel Lame Deer C nr Lame Deer MT"},{id:"06306000",name:"Tongue River near Acme, WY"},{id:"06306300",name:"Tongue River at State Line nr Decker MT"},{id:"06307500",name:"Tongue River at Tongue R Dam nr Decker MT"},{id:"06307616",name:"Tongue R at Birney Day School Br nr Birney MT"},{id:"06307662",name:"Tongue River at Ashland, MT"},{id:"06307830",name:"Tongue R bl Brandenberg bridge nr Ashland MT"},{id:"06308500",name:"Tongue River at Miles City, MT"},{id:"06309200",name:"MIDDLE FORK POWDER RIVER NEAR BARNUM, WY"},{id:"06313400",name:"SALT CREEK NEAR SUSSEX, WY"},{id:"06317000",name:"POWDER RIVER AT ARVADA, WY"},{id:"06318500",name:"CLEAR CREEK NEAR BUFFALO, WY"},{id:"06324500",name:"Powder River at Moorhead MT"},{id:"06326500",name:"Powder River near Locate MT"},{id:"12301250",name:"Tobacco River at Eureka, MT"},{id:"12301933",name:"Kootenai River bl Libby Dam nr Libby MT"},{id:"12302055",name:"Fisher River near Libby MT"},{id:"12304500",name:"Yaak River near Troy MT"},{id:"12323233",name:"Blacktail Creek above Grove Gulch, at Butte, MT"},{id:"12323242",name:"Silver Bow Creek at Montana Street, at Butte, MT"},{id:"12323250",name:"Silver Bow Cr bl Blacktail Cr, at Butte, MT"},{id:"12323600",name:"Silver Bow Creek at Opportunity MT"},{id:"12323670",name:"Mill Creek nr Anaconda, MT"},{id:"12323700",name:"Mill Creek at Opportunity, MT"},{id:"12323710",name:"Willow Creek nr Anaconda, MT"},{id:"12323720",name:"Willow Creek at Opportunity, MT"},{id:"12323750",name:"Silver Bow Creek at Warm Springs MT"},{id:"12323760",name:"Warm Springs Creek near Anaconda MT"},{id:"12323770",name:"Warm Springs Creek at Warm Springs MT"},{id:"12323800",name:"Clark Fork near Galen MT"},{id:"12323840",name:"Lost Creek near Anaconda MT"},{id:"12323850",name:"Lost Creek near Galen, MT"},{id:"12324200",name:"Clark Fork at Deer Lodge MT"},{id:"12324400",name:"Clark Fork ab Little Blackfoot R nr Garrison MT"},{id:"12324590",name:"Little Blackfoot River near Garrison MT"},{id:"12324680",name:"Clark Fork at Goldcreek MT"},{id:"12325500",name:"Flint Creek near Southern Cross MT"},{id:"12329500",name:"Flint Creek at Maxville MT"},{id:"12330000",name:"Boulder Creek at Maxville MT"},{id:"12331500",name:"Flint Creek near Drummond MT"},{id:"12331800",name:"Clark Fork near Drummond MT"},{id:"12332000",name:"Middle Fork Rock Cr nr Philipsburg MT"},{id:"12334510",name:"Rock Creek near Clinton MT"},{id:"12334550",name:"Clark Fork at Turah Bridge nr Bonner MT"},{id:"12340500",name:"Clark Fork above Missoula MT"},{id:"12353000",name:"Clark Fork below Missoula MT"},{id:"12353650",name:"Clark Fork at Superior, MT"},{id:"12354000",name:"St. Regis River near St. Regis, MT"},{id:"12354500",name:"Clark Fork at St. Regis MT"},{id:"12354700",name:"Clark Fork near Paradise, MT"},{id:"12389000",name:"Clark Fork near Plains MT"},{id:"12389500",name:"Thompson River near Thompson Falls MT"},{id:"12390700",name:"Prospect Creek at Thompson Falls MT"},{id:"12335100",name:"Blackfoot R ab Nevada Cr nr Helmville MT"},{id:"12335500",name:"Nevada Cr ab reservoir, nr Helmville, MT"},{id:"12338300",name:"NF Blackfoot R ab Dry Gulch nr Ovando MT"},{id:"12340000",name:"Blackfoot River near Bonner MT"},{id:"12342500",name:"West Fork Bitterroot River nr Conner MT"},{id:"12344000",name:"Bitterroot River near Darby MT"},{id:"12350250",name:"Bitterroot River at Bell Crossing nr Victor MT"},{id:"12352500",name:"Bitterroot River near Missoula MT"},{id:"12355000",name:"Flathead River at Flathead British Columbia"},{id:"12355500",name:"N F Flathead River nr Columbia Falls MT"},{id:"12358500",name:"M F Flathead River near West Glacier MT"},{id:"12359800",name:"S F Flathead R ab Twin C nr Hungry Horse MT"},{id:"12362500",name:"S F Flathead River nr Columbia Falls MT"},{id:"12363000",name:"Flathead River at Columbia Falls MT"},{id:"12365700",name:"Stillwater River at Lawrence Park, at Kalispell"},{id:"12366000",name:"Whitefish River near Kalispell MT"},{id:"12366500",name:"Flathead River at Foys Bend nr Kalispell MT"},{id:"12370000",name:"Swan River near Bigfork, MT"},{id:"12372000",name:"Flathead River near Polson MT"},{id:"12377150",name:"Mission Creek ab reservoir nr St. Ignatius MT"},{id:"12381400",name:"South Fork Jocko River near Arlee MT"},{id:"12388700",name:"Flathead River at Perma MT"},{id:"06218500",name:"WIND RIVER NEAR DUBOIS, WY"},{id:"06220800",name:"WIND RIVER ABOVE RED CREEK, NEAR DUBOIS, WY"},{id:"06221400",name:"DINWOODY CREEK ABOVE LAKES, NEAR BURRIS, WY"},{id:"06224000",name:"BULL LAKE CREEK ABOVE BULL LAKE, WY"},{id:"06227600",name:"WIND RIVER NEAR KINNEAR, WY"},{id:"06228000",name:"WIND RIVER AT RIVERTON, WY"},{id:"06228350",name:"SF L WIND RIV AB WASHAKIE RES, NR FT WASHAKIE, WY"},{id:"06235500",name:"LITTLE WIND RIVER NEAR RIVERTON, WY"},{id:"06236100",name:"WIND RIVER AB BOYSEN RESERVOIR, NR SHOSHONI, WY"},{id:"06253000",name:"FIVEMILE CREEK NEAR SHOSHONI, WY"},{id:"06258000",name:"MUDDY CREEK NEAR SHOSHONI, WY"},{id:"06620000",name:"NORTH PLATTE RIVER NEAR NORTHGATE, CO"},{id:"06622700",name:"NORTH BRUSH CREEK NEAR SARATOGA, WY"},{id:"06623800",name:"ENCAMPMENT RIVER AB HOG PARK CR, NR ENCAMPMENT, WY"},{id:"06625000",name:"ENCAMPMENT RIVER AT MOUTH, NEAR ENCAMPMENT, WY"},{id:"06630000",name:"N PLATTE RIV AB SEMINOE RESERVOIR, NR SINCLAIR, WY"},{id:"06630465",name:"Medicine Bow R ab E Fk Med Bow nr Elk Mountain, WY"},{id:"06632400",name:"ROCK CREEK AB KING CANYON CANAL, NR ARLINGTON, WY"},{id:"06634060",name:"L Medicine Bow R ab Sand Cr, nr Shirley Basin, WY"},{id:"06634620",name:"L MEDICINE BOW R AT BOLES SPRING, NR MEDICINE BOW"},{id:"06635000",name:"MEDICINE BOW R AB SEMINOE RESERVOIR, NR HANNA, WY"},{id:"06646000",name:"DEER CREEK IN CANYON, NEAR GLENROCK, WY"},{id:"06652000",name:"NORTH PLATTE RIVER AT ORIN, WY"},{id:"06657000",name:"NORTH PLATTE RIVER BELOW WHALEN DIVERSION DAM, WY"},{id:"06660000",name:"LARAMIE RIVER AT LARAMIE, WY"},{id:"06670500",name:"LARAMIE RIVER NEAR FORT LARAMIE, WY"},{id:"09188500",name:"GREEN RIVER AT WARREN BRIDGE, NEAR DANIEL, WY"},{id:"09189020",name:"Forty Rod Creek at Daniel Hatchery, nr Daniel, WY"},{id:"09191150",name:"North Cottonwood Cr bl Halverson Cr, nr Daniel, WY"},{id:"09192750",name:"New Fork River ab New Fork Lakes, nr Cora, WY"},{id:"09193700",name:"New Fork River ab Willow Cr, nr Cora, WY"},{id:"09195000",name:"Lake Creek below Willow Lake, nr Cora, WY"},{id:"09195600",name:"Duck Creek above New Fork R nr Pinedale"},{id:"09196000",name:"New Fork River above Pine Cr, nr Pinedale, WY"},{id:"09196500",name:"PINE CREEK ABOVE FREMONT LAKE, WY"},{id:"09201500",name:"Boulder Creek above Boulder Lake, near Boulder, WY"},{id:"09202000",name:"Boulder Creek bl Boulder Lake, nr Boulder, WY"},{id:"09202700",name:"Ward Ball Reservoir outflow, nr Boulder, WY"},{id:"09203500",name:"East Fork River ab East Fork Canal, nr Boulder, WY"},{id:"09204500",name:"East Fork at New Fork, WY"},{id:"09205000",name:"NEW FORK RIVER NEAR BIG PINEY, WY"},{id:"09205300",name:"Muddy Creek at mouth, near Big Piney, WY"},{id:"09209400",name:"GREEN RIVER NEAR LA BARGE, WY"},{id:"09210500",name:"FONTENELLE C NR HERSCHLER RANCH, NR FONTENELLE, WY"},{id:"09211200",name:"GREEN RIVER BELOW FONTENELLE RESERVOIR, WY"},{id:"09213500",name:"BIG SANDY RIVER NEAR FARSON, WY"},{id:"09216050",name:"Big Sandy River at Gasson Bridge, near Eden, WY"},{id:"09216550",name:"DEADMAN WASH NEAR POINT OF ROCKS, WY"},{id:"09216560",name:"BITTER CREEK NEAR POINT OF ROCKS, WY"},{id:"09216950",name:"Bitter Creek near Green River, WY"},{id:"09217000",name:"GREEN RIVER NEAR GREEN RIVER, WY"},{id:"09217010",name:"GREEN RIVER BELOW GREEN RIVER, WY"},{id:"09217900",name:"BLACKS FORK NEAR ROBERTSON, WY"},{id:"09218500",name:"BLACKS FORK NEAR MILLBURNE, WY"},{id:"09218850",name:"Blacks Fork bl Blacks Fork Canal, nr Robertson, WY"},{id:"09218895",name:"Blacks Fork bl Little Blacks Fk at Fort Bridger WY"},{id:"09219200",name:"Blacks Fork above Smiths Fork, near Lyman, WY"},{id:"09220000",name:"East Fork Smiths Fork near Robertson, WY"},{id:"09221505",name:"South Creek at Mountain View, WY"},{id:"09222100",name:"Muddy Creek near Piedmont, WY"},{id:"09222400",name:"MUDDY CREEK NEAR HAMPTON, WY"},{id:"09223000",name:"HAMS FORK BELOW POLE CREEK, NEAR FRONTIER, WY"},{id:"09224000",name:"Hams Fork at Diamondville, WY"},{id:"09224700",name:"BLACKS FORK NEAR LITTLE AMERICA, WY"},{id:"09228000",name:"Henrys Fork near Burntfork, WY"},{id:"09229500",name:"HENRYS FORK NEAR MANILA, UT"},{id:"13010065",name:"SNAKE RIVER AB JACKSON LAKE AT FLAGG RANCH WY"},{id:"13011000",name:"SNAKE RIVER NEAR MORAN, WY"},{id:"13011500",name:"Pacific Creek at Moran, WY"},{id:"13011820",name:"Blackrock Cr bl Split Rock Cr, nr Moran, WY"},{id:"13011900",name:"BUFFALO FORK AB LAVA CREEK, NR MORAN, WY"},{id:"13013650",name:"SNAKE RIVER AT MOOSE, WY"},{id:"13014300",name:"GROS VENTRE R AB UPPER SLIDE LK, NR KELLY, WY"},{id:"13014500",name:"GROS VENTRE RIVER AT KELLY, WY"},{id:"13015000",name:"GROS VENTRE RIVER AT ZENITH, WY"},{id:"13016305",name:"GRANITE C AB GRANITE C SUPPLEMENTAL, NR MOOSE, WY"},{id:"13016450",name:"FISH CREEK AT WILSON, WY"},{id:"13018300",name:"CACHE CREEK NEAR JACKSON, WY"},{id:"13018350",name:"FLAT CREEK BELOW CACHE CREEK, NEAR JACKSON, WY"},{id:"13018750",name:"SNAKE RIVER BELOW FLAT CREEK, NEAR JACKSON, WY"},{id:"13019500",name:"HOBACK RIVER NEAR JACKSON, WY"},{id:"13022500",name:"SNAKE RIVER ABOVE RESERVOIR, NEAR ALPINE, WY"},{id:"13025500",name:"CROW CREEK NEAR FAIRVIEW, WY"},{id:"09253470",name:"Battle Cr bl West Fork Battle Cr, near Slater, CO"},{id:"09255200",name:"Little Snake River ab Savery Cr, nr Savery, WY"},{id:"09257000",name:"LITTLE SNAKE RIVER NEAR DIXON, WY"},{id:"09258050",name:"Muddy Creek above Olson Draw, near Dad, WY"},{id:"09258980",name:"MUDDY CREEK BELOW YOUNG DRAW, NEAR BAGGS, WY"},{id:"09259050",name:"Little Snake R bl Gibson Blair Ditch, nr Baggs, WY"},{id:"09259700",name:"Little Snake River bl Dry Gulch, nr Baggs, WY"},{id:"10016900",name:"BEAR RIVER AT EVANSTON, WY"},{id:"06426500",name:"BELLE FOURCHE RIVER BELOW MOORCROFT, WY"},{id:"06427850",name:"BELLE FOURCHE RIVER AT DEVILS TOWER, WY"},{id:"05014500",name:"Swiftcurrent Creek at Many Glacier MT"},{id:"05017500",name:"St. Mary River near Babb MT"},{id:"05020500",name:"St. Mary River at International Boundary"},{id:"06638090",name:"SWEETWATER RIVER NEAR SWEETWATER STATION, WY"}];
+let GAGES = []; // Will be populated with {id, name, lat, lon} from USGS site service
+
+// Fetch site coordinates from USGS site service in batches
+async function fetchSiteCoordinates(siteIds) {
+    const results = [];
+    const nameMap = {};
+    for (const s of ALL_SITE_IDS) nameMap[s.id] = s.name;
+    const batchSize = 100;
+
+    for (let i = 0; i < siteIds.length; i += batchSize) {
+        const batch = siteIds.slice(i, i + batchSize);
+        try {
+            const url = `https://waterservices.usgs.gov/nwis/site/?format=rdb&sites=${batch.join(',')}&siteOutput=expanded&siteStatus=all`;
+            const resp = await fetch(url);
+            if (!resp.ok) continue;
+            const text = await resp.text();
+            const lines = text.split('\n');
+            let headers = null;
+            let skipNext = true;
+            for (const line of lines) {
+                if (line.startsWith('#')) continue;
+                if (!headers) { headers = line.split('\t'); skipNext = true; continue; }
+                if (skipNext) { skipNext = false; continue; }
+                if (!line.trim()) continue;
+                const fields = line.split('\t');
+                const siteNoIdx = headers.indexOf('site_no');
+                const latIdx = headers.indexOf('dec_lat_va');
+                const lonIdx = headers.indexOf('dec_long_va');
+                const nameIdx = headers.indexOf('station_nm');
+                if (siteNoIdx < 0 || latIdx < 0 || lonIdx < 0) continue;
+                const siteNo = fields[siteNoIdx]?.trim();
+                const lat = parseFloat(fields[latIdx]);
+                const lon = parseFloat(fields[lonIdx]);
+                const fetchedName = fields[nameIdx]?.trim();
+                if (!siteNo || isNaN(lat) || isNaN(lon)) continue;
+                results.push({
+                    id: siteNo,
+                    name: nameMap[siteNo] || fetchedName || siteNo,
+                    lat: lat,
+                    lon: lon
+                });
+            }
+        } catch(e) {
+            console.warn('Site coordinates batch error:', e);
+            continue;
+        }
+    }
+    return results;
+}
+
+// ===== FIRE DATA FETCHING =====
+let fireMap = null;
+let fireIncidents = [];
+
+async function fetchFireIncidents() {
+    const url = 'https://services3.arcgis.com/T4QMspbfLg3qTGWY/arcgis/rest/services/WFIGS_Incident_Locations_Current/FeatureServer/0/query';
+    const params = new URLSearchParams({
+        where: "POOState IN ('US-MT','US-WY')",
+        outFields: 'IncidentName,DailyAcres,PercentContained,FireDiscoveryDateTime,POOState',
+        f: 'json',
+        returnGeometry: 'true'
+    });
+    try {
+        const resp = await fetch(`${url}?${params}`);
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const data = await resp.json();
+        return (data.features || []).map(f => ({
+            name: f.attributes.IncidentName,
+            acres: f.attributes.DailyAcres,
+            pctContained: f.attributes.PercentContained,
+            discoveryDate: f.attributes.FireDiscoveryDateTime,
+            state: f.attributes.POOState === 'US-MT' ? 'Montana' : 'Wyoming',
+            lat: f.geometry?.y,
+            lon: f.geometry?.x
+        })).filter(f => f.lat && f.lon);
+    } catch(e) {
+        console.warn('Fire incidents fetch error:', e);
+        return [];
+    }
+}
+
+async function fetchFirePerimeters() {
+    const url = 'https://services3.arcgis.com/T4QMspbfLg3qTGWY/arcgis/rest/services/WFIGS_Interagency_Perimeters/FeatureServer/0/query';
+    const params = new URLSearchParams({
+        where: "attr_POOState IN ('US-MT','US-WY')",
+        outFields: 'poly_IncidentName,poly_GISAcres',
+        f: 'geojson',
+        returnGeometry: 'true'
+    });
+    try {
+        const resp = await fetch(`${url}?${params}`);
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const data = await resp.json();
+        return data;
+    } catch(e) {
+        console.warn('Fire perimeters fetch error:', e);
+        return null;
+    }
+}
+
+// ===== DISTANCE CALCULATION =====
+function haversineDistance(lat1, lon1, lat2, lon2) {
+    const R = 3958.8; // Earth radius in miles
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
+}
+
+// ===== MAP BUILDING =====
+function buildMap(incidents, perimetersGeoJSON) {
+    if (fireMap) { fireMap.remove(); fireMap = null; }
+    fireMap = L.map('fireMap').setView([46, -109], 6);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors',
+        maxZoom: 15
+    }).addTo(fireMap);
+
+    // Add fire perimeters (GeoJSON polygons)
+    if (perimetersGeoJSON && perimetersGeoJSON.features) {
+        L.geoJSON(perimetersGeoJSON, {
+            style: {
+                color: '#dc2626',
+                weight: 2,
+                fillColor: '#dc2626',
+                fillOpacity: 0.2
+            },
+            onEachFeature: function(feature, layer) {
+                const props = feature.properties || {};
+                const name = props.poly_IncidentName || 'Unknown';
+                const acres = props.poly_GISAcres;
+                layer.bindPopup(`<b>${name}</b><br>Acres: ${acres ? acres.toLocaleString() : 'N/A'}`);
+            }
+        }).addTo(fireMap);
+    }
+
+    // Add fire incidents as circle markers (size based on acres)
+    for (const fire of incidents) {
+        const radius = fire.acres ? Math.max(6, Math.min(20, Math.sqrt(fire.acres) / 10)) : 6;
+        const marker = L.circleMarker([fire.lat, fire.lon], {
+            radius: radius,
+            fillColor: '#f97316',
+            color: '#dc2626',
+            weight: 2,
+            fillOpacity: 0.7
+        }).addTo(fireMap);
+        const discoveryStr = fire.discoveryDate
+            ? new Date(fire.discoveryDate).toLocaleDateString()
+            : 'Unknown';
+        marker.bindPopup(`<b>${fire.name}</b><br>Acres: ${fire.acres ? fire.acres.toLocaleString() : 'N/A'}<br>% Contained: ${fire.pctContained != null ? fire.pctContained + '%' : 'N/A'}<br>Discovery Date: ${discoveryStr}`);
+    }
+
+    // Add gage locations as blue circles
+    for (const gage of GAGES) {
+        const marker = L.circleMarker([gage.lat, gage.lon], {
+            radius: 5,
+            fillColor: '#2563eb',
+            color: '#1e3a5f',
+            weight: 1,
+            fillOpacity: 0.8
+        }).addTo(fireMap);
+        marker.bindPopup(`<b>${gage.name}</b><br>Site Number: ${gage.id}`);
+    }
+
+    // Add legend
+    const legend = L.control({position: 'bottomright'});
+    legend.onAdd = function() {
+        const div = L.DomUtil.create('div', 'map-legend');
+        div.innerHTML = `
+            <i style="background:#2563eb"></i> USGS Gages<br>
+            <i style="background:#f97316;border:2px solid #dc2626"></i> Fire Incidents<br>
+            <span class="poly-icon"></span> Fire Perimeters`;
+        return div;
+    };
+    legend.addTo(fireMap);
+}
+
+// ===== TABLE RENDERING =====
+function renderFireTable(incidents) {
+    const section = document.getElementById('fireTableSection');
+    const body = document.getElementById('fireTableBody');
+    if (!incidents.length) {
+        section.style.display = 'block';
+        body.innerHTML = '<div class="no-data">No active fires reported in MT/WY at this time.</div>';
+        return;
+    }
+    section.style.display = 'block';
+    let html = `<table class="fire-table">
+        <thead><tr>
+            <th>Fire Name</th>
+            <th style="text-align:right">Acres</th>
+            <th style="text-align:right">% Contained</th>
+            <th>State</th>
+            <th>Discovery Date</th>
+        </tr></thead><tbody>`;
+    const sorted = [...incidents].sort((a,b) => (b.acres||0) - (a.acres||0));
+    for (const fire of sorted) {
+        const discoveryStr = fire.discoveryDate
+            ? new Date(fire.discoveryDate).toLocaleDateString()
+            : 'â€”';
+        html += `<tr>
+            <td><strong>${fire.name}</strong></td>
+            <td style="text-align:right;font-family:monospace">${fire.acres ? fire.acres.toLocaleString() : 'â€”'}</td>
+            <td style="text-align:right">${fire.pctContained != null ? fire.pctContained + '%' : 'â€”'}</td>
+            <td>${fire.state}</td>
+            <td>${discoveryStr}</td>
+        </tr>`;
+    }
+    html += '</tbody></table>';
+    body.innerHTML = html;
+}
+
+// ===== PROXIMITY ALERTS =====
+function renderProximityAlerts(incidents) {
+    const section = document.getElementById('proximitySection');
+    const body = document.getElementById('proximityBody');
+    const alerts = [];
+
+    for (const gage of GAGES) {
+        for (const fire of incidents) {
+            const dist = haversineDistance(gage.lat, gage.lon, fire.lat, fire.lon);
+            if (dist <= 20) {
+                alerts.push({
+                    gageName: gage.name,
+                    gageId: gage.id,
+                    fireName: fire.name,
+                    fireAcres: fire.acres,
+                    distance: dist
+                });
+            }
+        }
+    }
+
+    if (!alerts.length) {
+        section.style.display = 'block';
+        body.innerHTML = '<div class="no-data">No gages are currently within 20 miles of an active fire.</div>';
+        return;
+    }
+
+    section.style.display = 'block';
+    alerts.sort((a,b) => a.distance - b.distance);
+    let html = '';
+    for (const alert of alerts) {
+        html += `<div class="proximity-alert">
+            <div class="alert-title">${alert.gageName} (${alert.gageId})</div>
+            <div class="alert-detail">${alert.distance.toFixed(1)} miles from <strong>${alert.fireName}</strong> (${alert.fireAcres ? alert.fireAcres.toLocaleString() + ' acres' : 'size unknown'})</div>
+        </div>`;
+    }
+    body.innerHTML = html;
+}
+
+// ===== MAIN =====
+async function main() {
+    const statusBar = document.getElementById('statusBar');
+    try {
+        statusBar.className = 'status-bar loading';
+        statusBar.textContent = 'Fetching gage site coordinates from USGS...';
+
+        // Fetch all site coordinates from USGS site service
+        const allSiteIds = ALL_SITE_IDS.map(s => s.id);
+        GAGES = await fetchSiteCoordinates(allSiteIds);
+
+        statusBar.textContent = `Loaded ${GAGES.length} gage locations. Fetching active fire incidents from NIFC...`;
+
+        const [incidents, perimeters] = await Promise.all([
+            fetchFireIncidents(),
+            fetchFirePerimeters()
+        ]);
+
+        fireIncidents = incidents;
+        statusBar.textContent = 'Building map...';
+
+        buildMap(incidents, perimeters);
+        renderFireTable(incidents);
+        renderProximityAlerts(incidents);
+
+        const perimCount = perimeters?.features?.length || 0;
+        const now = new Date().toLocaleString();
+        if (incidents.length === 0 && perimCount === 0) {
+            statusBar.className = 'status-bar success';
+            statusBar.textContent = `No active fires reported in MT/WY. ${GAGES.length} gages mapped. Last checked: ${now}`;
+        } else {
+            statusBar.className = 'status-bar error';
+            statusBar.textContent = `${incidents.length} active fire incident(s), ${perimCount} perimeter(s) in MT/WY. ${GAGES.length} gages mapped. Last updated: ${now}`;
+        }
+    } catch(e) {
+        statusBar.className = 'status-bar error';
+        statusBar.textContent = `Error loading data: ${e.message}`;
+        console.error(e);
+        // Still build map with whatever gages we have
+        buildMap([], null);
+    }
+}
+
+main();
+</script>
+</body>
+</html>
