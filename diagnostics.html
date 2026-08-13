@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>USGS MT-WY Site Diagnostics</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #f0f4f8; color: #1a1a2e; padding: 20px; line-height: 1.5; }
+        .container { max-width: 1400px; margin: 0 auto; }
+        header { background: #1a1a2e; color: white; padding: 20px 30px; border-radius: 0 0 8px 8px; margin-bottom: 15px; }
+        header h1 { font-size: 1.5em; margin-bottom: 5px; }
+        header p { opacity: 0.8; font-size: 0.9em; }
+        .status-bar { padding: 10px 15px; border-radius: 5px; margin-bottom: 15px; font-size: 0.85em; }
+        .status-bar.loading { background: #fef3c7; }
+        .status-bar.error { background: #fee2e2; color: #991b1b; }
+        .status-bar.success { background: #d1fae5; color: #065f46; }
+        .summary-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 20px; }
+        .summary-card { background: white; padding: 15px; border-radius: 8px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .summary-card .number { font-size: 2em; font-weight: 700; }
+        .summary-card .label { font-size: 0.8em; color: #64748b; margin-top: 4px; }
+        .card-stale .number { color: #dc2626; }
+        .card-missed .number { color: #d97706; }
+        .card-flat .number { color: #7c3aed; }
+        .card-paint .number { color: #0891b2; }
+        .card-ok .number { color: #059669; }
+        .section { background: white; border-radius: 8px; margin-bottom: 15px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .section-header { background: #1e293b; color: white; padding: 12px 20px; font-weight: 600; cursor: pointer; display: flex; justify-content: space-between; }
+        .section-header:hover { background: #334155; }
+        .diag-table { width: 100%; border-collapse: collapse; font-size: 0.85em; }
+        .diag-table th { text-align: left; padding: 8px 10px; border-bottom: 2px solid #e2e8f0; font-weight: 600; color: #475569; }
+        .diag-table td { padding: 8px 10px; border-bottom: 1px solid #f1f5f9; }
+        .diag-table tr:hover { background: #f8fafc; }
+        .badge { padding: 2px 8px; border-radius: 10px; font-size: 0.75em; color: white; font-weight: 600; }
+        .badge-stale { background: #dc2626; }
+        .badge-missed { background: #d97706; }
+        .badge-flat { background: #7c3aed; }
+        .badge-paint { background: #0891b2; }
+        .controls { background: white; padding: 12px 20px; border-radius: 8px; margin-bottom: 15px; display: flex; align-items: center; gap: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .controls button { padding: 8px 16px; border-radius: 5px; border: none; background: #2563eb; color: white; cursor: pointer; font-weight: 600; }
+        .controls button:hover { background: #1d4ed8; }
+        .controls button:disabled { background: #94a3b8; cursor: not-allowed; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div style="background:#334155;padding:8px 20px;border-radius:8px 8px 0 0;display:flex;gap:15px;font-size:0.85em;flex-wrap:wrap;align-items:center">
+        <a href="index.html" style="color:#94a3b8;text-decoration:none">Discharge &amp; Temperature</a>
+        <a href="qw.html" style="color:#94a3b8;text-decoration:none">Water Quality</a>
+        <a href="fires.html" style="color:#94a3b8;text-decoration:none">Fire</a>
+        <a href="weather.html" style="color:#94a3b8;text-decoration:none">Weather</a>
+        <a href="diagnostics.html" style="color:white;text-decoration:none;font-weight:600;border-bottom:2px solid white;padding-bottom:2px">Diagnostics</a>
+    </div>
+    <header>
+        <h1>Site Diagnostics</h1>
+        <p>Checks for missed transmits, stale data, flat lines, and possible buried sensors across MT-WY sites</p>
+    </header>
+    <div class="controls">
+        <button id="runBtn" onclick="runDiagnostics()">Run Diagnostics</button>
+        <span id="lastRun" style="font-size:0.8em;color:#64748b"></span>
+    </div>
+    <div id="statusBar" class="status-bar">Click "Run Diagnostics" to check all sites.</div>
+    <div id="summary" class="summary-cards" style="display:none"></div>
+    <div id="results"></div>
+</div>
+<script>
+const SITE_COORDS = {"06006000":[44.6158,-111.6257],"06012500":[44.6559,-112.3712],"06015430":[45.0158,-112.8372],"06015460":[45.3388,-113.1204],"06015480":[45.1696,-113.0134],"06016000":[45.1161,-112.7505],"06017000":[45.2184,-112.6553],"06018500":[45.3834,-112.4528],"06019500":[45.1923,-112.1428],"06020600":[45.2419,-112.1112],"06023000":[45.5069,-112.3309],"06023100":[45.5469,-112.3381],"06024100":[45.4479,-113.4574],"06024450":[45.618,-113.4569],"06024540":[45.8075,-113.3133],"06024580":[45.8508,-113.0684],"06025100":[45.7764,-112.8619],"06025250":[45.7013,-112.736],"06025500":[45.5266,-112.7017],"06026210":[45.4401,-112.5561],"06026420":[45.55,-112.3607],"06026500":[45.6133,-112.3294],"06027600":[45.7475,-112.1872],"06031950":[46.2864,-112.2434],"06033000":[46.211,-112.0916],"06034700":[45.7914,-111.7555],"06035000":[45.7231,-111.741],"06036650":[45.8971,-111.5957],"06036805":[44.4593,-110.8223],"06036905":[44.6202,-110.8635],"06036940":[44.7327,-110.7133],"06037100":[44.6408,-110.8611],"06037500":[44.6571,-111.068],"06038500":[44.8664,-111.3388],"06038550":[44.8714,-111.3435],"06038800":[44.8887,-111.5809],"06040000":[45.2331,-111.7516],"06040050":[45.3476,-111.7225],"06040800":[45.4866,-111.6339],"06041000":[45.4902,-111.6345],"06041500":[45.6076,-111.5731],"06043120":[45.2973,-111.2114],"06043300":[45.454,-111.2449],"06043500":[45.4973,-111.2707],"06048650":[45.7257,-111.0662],"06050000":[45.5633,-111.0719],"06052500":[45.8862,-111.442],"06053050":[46.2605,-110.7862],"06054500":[46.1466,-111.4203],"06056200":[46.3579,-111.0965],"06056300":[46.3349,-111.22],"06061500":[46.5191,-111.9468],"06062500":[46.5239,-112.2566],"06063000":[46.605,-112.0883],"06065500":[46.7662,-111.8888],"06066500":[46.9947,-112.0107],"06071300":[47.0054,-112.0703],"06071400":[47.0865,-111.9936],"06073500":[47.199,-112.0959],"06073600":[47.2909,-112.1638],"06074000":[47.2695,-111.6952],"06076690":[46.7958,-111.1786],"06077200":[46.828,-111.1922],"06077500":[47.1893,-111.3862],"06078200":[47.435,-111.3884],"06078500":[47.6399,-112.8593],"06079000":[47.6286,-112.8658],"06080900":[47.6185,-112.6921],"06082200":[47.5471,-112.3674],"06085510":[47.4505,-111.9229],"06085800":[47.5016,-111.9319],"06088500":[47.5613,-111.5418],"06089000":[47.5258,-111.511],"06090300":[47.5844,-111.0606],"06090500":[47.2086,-110.9317],"06090550":[47.2518,-110.7316],"06090800":[47.8169,-110.6661],"06091700":[48.427,-112.99],"06092020":[48.5077,-112.6123],"06093200":[48.3694,-112.8018],"06094900":[48.2447,-112.6979],"06097000":[48.3199,-112.5658],"06097300":[48.2658,-112.5323],"06098120":[48.3911,-112.3197],"06098700":[48.7503,-112.7567],"06098800":[48.6785,-112.594],"06099000":[48.6334,-112.3465],"06099500":[48.4272,-111.8898],"06100300":[48.2364,-112.2323],"06101200":[48.4487,-111.3453],"06101500":[48.306,-111.0805],"06101520":[48.263,-111.7034],"06101630":[48.26,-110.8917],"06102050":[47.9459,-110.5808],"06102500":[47.8831,-112.612],"06108800":[47.9327,-110.5144],"06109500":[48.0038,-110.2588],"06109600":[47.7589,-109.6612],"06110020":[46.9177,-110.1889],"06115200":[47.6314,-108.6877],"06111800":[47.0878,-109.4575],"06114550":[47.301,-110.1326],"06114700":[47.6652,-109.652],"06119600":[46.477,-110.249],"06120500":[46.4288,-109.8412],"06120900":[46.4385,-109.8225],"06123030":[46.319,-109.4605],"06123200":[46.1939,-109.9005],"06125600":[46.2891,-108.9376],"06126500":[46.4277,-108.5701],"06127500":[46.5224,-108.1089],"06128500":[47.2277,-108.8005],"06130000":[46.9287,-107.9328],"06130500":[46.9947,-107.8892],"06130610":[47.0541,-107.6126],"06130630":[47.4173,-108.7515],"06130915":[47.3327,-106.7114],"06131200":[47.5366,-106.1535],"06131300":[47.6054,-106.153],"06133000":[49.0075,-112.5453],"06133500":[48.9635,-113.0624],"06134000":[49.0263,-112.9697],"06134500":[49.1446,-112.0806],"06135000":[48.9748,-110.4218],"06137570":[48.2988,-109.8354],"06137572":[48.2985,-109.8631],"06137574":[48.3048,-109.924],"06137575":[48.3104,-110.0196],"06137600":[48.9105,-110.773],"06138580":[48.4527,-109.9208],"06139500":[48.5267,-109.8416],"06139800":[48.1761,-109.6421],"06139850":[48.1793,-109.6436],"06139900":[48.2241,-109.6523],"06140500":[48.5637,-109.696],"06142400":[48.5789,-109.3911],"06143900":[48.654,-109.5305],"06145500":[49.0057,-109.7178],"06146980":[48.6754,-109.275],"06149500":[49.0016,-109.4225],"06151500":[48.6495,-109.2317],"06153400":[48.6454,-109.0457],"06153800":[48.5243,-108.8552],"06154100":[48.4896,-108.759],"06154350":[48.1922,-109.3076],"06154390":[48.2641,-108.8618],"06154400":[48.2237,-108.7141],"06154410":[47.9649,-108.656],"06154430":[48.0311,-108.5326],"06155030":[48.4028,-108.2941],"06155500":[48.3622,-107.8764],"06156100":[48.6861,-107.691],"06164000":[49,-107.3029],"06164510":[48.5092,-107.2188],"06164600":[47.9275,-108.3527],"06164623":[47.9952,-108.3201],"06166000":[48.3568,-107.5822],"06167500":[48.4203,-107.1711],"06169500":[48.9694,-106.8398],"06172300":[48.3707,-106.7974],"06172310":[48.3079,-106.8223],"06174500":[48.1301,-106.3643],"06175100":[48.0306,-106.1228],"06175510":[48.0334,-106.0006],"06177000":[48.0673,-105.5331],"06177020":[48.2446,-105.4927],"06177100":[47.2391,-105.8171],"06177500":[47.414,-105.5756],"06177700":[47.7077,-105.4918],"06177825":[47.9022,-105.2128],"06178000":[48.9903,-105.6969],"06178500":[49,-105.4096],"06179100":[48.8094,-105.5861],"06179200":[48.5778,-105.3743],"06181000":[48.1179,-105.1928],"06183450":[48.6729,-104.5121],"06184200":[48.4025,-104.4975],"06185110":[48.1645,-104.6295],"06185500":[48.1235,-104.4733],"06186500":[44.5671,-110.3804],"06187915":[45.0028,-110.0019],"06188000":[44.9282,-110.3943],"06190540":[44.9851,-110.6893],"06191000":[44.9923,-110.691],"06191500":[45.1121,-110.7937],"06192500":[45.5972,-110.5665],"06192978":[46.1671,-110.4919],"06195600":[45.7384,-110.4795],"06195750":[45.7463,-110.2324],"06195950":[45.8472,-109.9407],"06197800":[45.5123,-110.0877],"06200000":[45.8338,-109.9387],"06204050":[45.2432,-109.7313],"06204070":[45.2544,-109.6999],"06204170":[45.4085,-109.6644],"06205000":[45.5367,-109.4221],"06207500":[45.0099,-109.0654],"06207800":[45.3314,-108.8015],"06208500":[45.4657,-108.8441],"06209500":[45.0861,-109.3292],"06210950":[45.258,-109.3143],"06211000":[45.4378,-109.2533],"06211500":[45.4221,-109.2305],"06214500":[45.8001,-108.468],"06217300":[45.9211,-108.4629],"06274300":[44.3833,-108.0363],"06278300":[44.5081,-107.4031],"06279500":[44.7585,-108.1816],"06279940":[44.4714,-109.4184],"06280300":[44.2079,-109.5552],"06281000":[44.4191,-109.258],"06285100":[44.8385,-108.4352],"06287000":[45.3169,-107.9189],"06287800":[45.4608,-107.7493],"06288400":[45.6441,-107.6582],"06289000":[45.0071,-107.6154],"06290500":[45.1771,-107.3946],"06291500":[45.1199,-107.6068],"06293500":[45.5683,-107.4528],"06294000":[45.7357,-107.5575],"06294400":[46.0651,-107.5429],"06294500":[46.1245,-107.4688],"06294930":[45.915,-107.1331],"06295000":[46.2666,-106.6913],"06295113":[45.3612,-106.9904],"06295220":[45.6758,-106.7003],"06296115":[46.3772,-105.9731],"06306000":[44.9451,-106.9409],"06306300":[45.0091,-106.8359],"06307500":[45.1413,-106.7714],"06307520":[45.2411,-106.6762],"06307616":[45.4116,-106.4574],"06307662":[45.5978,-106.2749],"06307720":[45.4103,-106.1525],"06307830":[45.8404,-106.2234],"06308330":[46.0344,-105.5218],"06308500":[46.3846,-105.8455],"06309000":[46.4208,-105.86],"06309040":[46.6872,-106.1748],"06309080":[46.5568,-105.6207],"06309200":[43.5777,-107.1384],"06313400":[43.6219,-106.3684],"06317000":[44.6499,-106.1276],"06318500":[44.3328,-106.7773],"06324500":[45.0572,-105.8784],"06324995":[45.0962,-105.3385],"06325700":[45.8136,-105.0659],"06326500":[46.4294,-105.3103],"06326580":[46.1941,-104.5522],"06326950":[46.9524,-104.8985],"06327450":[47.0942,-104.7133],"06327500":[47.1059,-104.7184],"06327550":[46.8014,-104.381],"06327720":[47.1055,-104.5973],"06328100":[47.1569,-104.6546],"06328495":[47.2637,-104.5397],"06329500":[47.6774,-104.1554],"06334330":[45.2174,-104.258],"12301250":[48.8779,-115.0545],"12301933":[48.4007,-115.3187],"12302055":[48.3556,-115.3146],"12304500":[48.5617,-115.9702],"12323233":[45.9913,-112.5274],"12323242":[45.9957,-112.5388],"12323250":[45.9992,-112.5773],"12323600":[46.1078,-112.8053],"12323670":[46.083,-112.9172],"12323700":[46.1136,-112.8281],"12323710":[46.0645,-112.8935],"12323720":[46.1072,-112.8106],"12323750":[46.1795,-112.7806],"12323760":[46.1337,-112.9032],"12323770":[46.1804,-112.7851],"12323800":[46.2082,-112.7674],"12323840":[46.1613,-112.8938],"12323850":[46.2186,-112.7742],"12324200":[46.3976,-112.7425],"12324400":[46.5109,-112.7897],"12324590":[46.5195,-112.7932],"12324680":[46.59,-112.9287],"12325500":[46.2327,-113.2999],"12329500":[46.4638,-113.2403],"12330000":[46.4717,-113.2358],"12331500":[46.6287,-113.1507],"12331800":[46.7119,-113.3308],"12332000":[46.1846,-113.5016],"12334510":[46.7223,-113.6831],"12334550":[46.8259,-113.814],"12335100":[46.9188,-113.015],"12335500":[46.7778,-112.7678],"12338300":[46.9795,-113.0922],"12340500":[46.8768,-113.9321],"12353000":[46.8686,-114.1277],"12353650":[47.1964,-114.8894],"12354000":[47.2967,-115.1226],"12354500":[47.3016,-115.0869],"12354700":[47.3219,-114.89],"12389000":[47.4292,-114.8565],"12389500":[47.5919,-115.2295],"12390700":[47.5861,-115.3551],"06218500":[43.5786,-109.7599],"06220800":[43.4416,-109.4588],"06221400":[43.3462,-109.4088],"06224000":[43.1766,-109.2026],"06227600":[43.1428,-108.7089],"06228000":[43.0105,-108.3768],"06228350":[42.9683,-109.0376],"06235500":[42.9975,-108.3754],"06236100":[43.129,-108.2248],"06253000":[43.2219,-108.2197],"06258000":[43.286,-108.2757],"06620000":[40.9366,-106.3392],"06622700":[41.3702,-106.5206],"06623800":[41.0236,-106.8248],"06625000":[41.3033,-106.7154],"06630000":[41.8722,-107.0576],"06630465":[41.5478,-106.4097],"06632400":[41.5852,-106.2228],"06634060":[42.3311,-106.1553],"06634620":[41.9611,-106.2092],"06635000":[42.0097,-106.5131],"06646000":[42.7116,-106.0292],"06652000":[42.6525,-105.1592],"06657000":[42.241,-104.628],"06660000":[41.3278,-105.6074],"06670500":[42.2005,-104.5384],"09188500":[43.0191,-110.1189],"09189020":[42.9294,-110.1272],"09191150":[42.8051,-110.4758],"09192750":[43.1261,-109.8974],"09193700":[42.9872,-109.9938],"09195000":[42.9931,-109.9094],"09195600":[42.8783,-109.951],"09196000":[42.8376,-109.8638],"09196500":[43.0271,-109.7735],"09201500":[42.8563,-109.6174],"09202000":[42.8194,-109.7171],"09202700":[42.7253,-109.7038],"09203500":[42.6739,-109.5697],"09204500":[42.6961,-109.7144],"09205000":[42.5671,-109.9302],"09205300":[42.527,-110.0709],"09209400":[42.1927,-110.1633],"09210500":[42.0958,-110.4161],"09211200":[42.021,-110.0498],"09213500":[42.3296,-109.5119],"09216050":[41.9474,-109.6882],"09216550":[41.6746,-108.7387],"09216560":[41.6741,-108.7773],"09216950":[41.5277,-109.3924],"09217000":[41.5163,-109.4491],"09217010":[41.4961,-109.4387],"09217900":[40.959,-110.5797],"09218500":[41.0316,-110.5794],"09218850":[41.1958,-110.4632],"09218895":[41.3295,-110.3892],"09219200":[41.3942,-110.206],"09220000":[41.0539,-110.3986],"09221505":[41.2672,-110.3397],"09222100":[41.2806,-110.5971],"09222400":[41.538,-110.2294],"09223000":[42.1109,-110.7094],"09224000":[41.7797,-110.5356],"09224700":[41.546,-109.6935],"09228000":[41.0392,-110.0403],"09229500":[41.0045,-109.6676],"12340000":[46.8994,-113.7563],"12342500":[45.7248,-114.2823],"12344000":[45.9721,-114.1412],"12350250":[46.4432,-114.1238],"12352500":[46.8317,-114.0549],"12355000":[49.0012,-114.4757],"12355500":[48.4958,-114.1268],"12358500":[48.4955,-114.0102],"12359800":[47.9791,-113.5607],"12362500":[48.3566,-114.0379],"12363000":[48.3618,-114.185],"12365700":[48.2172,-114.3137],"12366000":[48.3202,-114.2786],"12366500":[48.1543,-114.2489],"12370000":[48.0242,-113.9788],"12372000":[47.6803,-114.2467],"12377150":[47.3202,-113.9879],"12381400":[47.1956,-113.8507],"12388700":[47.3668,-114.585],"13010065":[44.0989,-110.6675],"13011000":[43.8585,-110.5866],"13011500":[43.8511,-110.5164],"13011820":[43.8071,-110.1787],"13011900":[43.8381,-110.4408],"13013650":[43.6541,-110.7155],"13014300":[43.576,-110.3109],"13014500":[43.6209,-110.6231],"13015000":[43.5572,-110.7628],"13016305":[43.6032,-110.8058],"13016450":[43.5008,-110.8716],"13018300":[43.4521,-110.7041],"13018350":[43.4584,-110.797],"13018750":[43.3722,-110.7386],"13019500":[43.3053,-110.6802],"05014500":[48.7988,-113.6567],"05017500":[48.833,-113.4207],"05020500":[49.0114,-113.2995],"06426500":[44.3219,-104.9406],"06427850":[44.5894,-104.7039],"06638090":[42.5038,-108.2507],"09253470":[41.084,-107.1731],"09255200":[41.0167,-107.4403],"09257000":[41.0285,-107.5489],"09258050":[41.4783,-107.6025],"09258980":[41.0681,-107.6316],"09259050":[41.029,-107.6837],"09259700":[41.0031,-107.9197],"10016900":[41.2699,-110.9637],"13022500":[43.1961,-110.8894],"13025500":[42.6749,-111.0077]};
+const SITE_NAMES = {"06006000":"Red Rock Cr ab Lakes, nr Lakeview, MT","06012500":"Red Rock R bl Lima Reservoir nr Monida MT","06015430":"Clark Canyon near Dillon MT","06015460":"Farlin Creek near Polaris, MT","06015480":"Grasshopper Creek tributary near Dillon, MT","06016000":"Beaverhead River at Barretts MT","06017000":"Beaverhead River at Dillon MT","06018500":"Beaverhead River near Twin Bridges MT","06019500":"Ruby River above reservoir near Alder, MT","06020600":"Ruby River below reservoir near Alder, MT","06023000":"Ruby River near Twin Bridges MT","06023100":"Beaverhead River at Twin Bridges, MT","06024100":"Fox Gulch near Jackson, MT","06024450":"Big Hole River bl Big Lake Cr at Wisdom MT","06024540":"Big Hole River bl Mudd Cr nr Wisdom MT","06024580":"Big Hole River near Wise River MT","06025100":"Quartz Hill Gulch near Wise River MT","06025250":"Big Hole River at Maiden Rock nr Divide MT","06025500":"Big Hole River near Melrose MT","06026210":"Big Hole River near Glen MT","06026420":"Big Hole R bl Hamilton Ditch nr Twin Bridges, MT","06026500":"Jefferson River near Twin Bridges, MT","06027600":"Jefferson River at Parsons Bdg nr Silver Star, MT","06031950":"Cataract Creek near Basin MT","06033000":"Boulder River near Boulder, MT","06034700":"Sand Creek at Sappington, MT","06035000":"Willow Creek near Harrison MT","06036650":"Jefferson River near Three Forks MT","06036805":"Firehole River at Old Faithful, YNP","06036905":"Firehole River near West Yellowstone MT","06036940":"Tantalus Creek at Norris Junction, YNP","06037100":"Gibbon River at Madison Jct, YNP","06037500":"Madison River near West Yellowstone, MT","06038500":"Madison River bl Hebgen Lake nr Grayling MT","06038550":"Cabin Creek near West Yellowstone MT","06038800":"Madison River at Kirby Ranch nr Cameron MT","06040000":"Madison River near Cameron MT","06040050":"Madison River at Ennis, MT","06040800":"Madison River ab powerplant nr McAllister MT","06041000":"Madison River bl Ennis Lake nr McAllister MT","06041500":"Madison River near Norris MT","06043120":"Gallatin River above Deer Creek, near Big Sky, MT","06043300":"Logger Creek near Gallatin Gateway MT","06043500":"Gallatin River near Gallatin Gateway, MT","06048650":"E Gallatin R ab Water Reclamation Fa nr Bozeman MT","06050000":"Hyalite C at Hyalite R S nr Bozeman MT","06052500":"Gallatin River at Logan MT","06061500":"Prickly Pear Creek near Clancy MT","06062500":"Tenmile Creek near Rimini MT","06063000":"Tenmile Creek near Helena MT","06071300":"Little Prickly Pear Cr at Wolf Cr MT","06071400":"Dog Creek near Craig, MT","06073500":"Dearborn River near Craig MT","06073600":"Black Rock Creek near Augusta MT","06053050":"Lost Creek near Ringling MT","06054500":"Missouri River at Toston MT","06056200":"Castle Creek Tributary near Ringling, MT","06056300":"Cabin Creek near Townsend MT","06065500":"Missouri River bl Hauser Dam near Helena MT","06066500":"Missouri River bl Holter Dam nr Wolf Cr MT","06074000":"Missouri River at Cascade MT","06078200":"Missouri River near Ulm MT","06090300":"Missouri River near Great Falls MT","06090500":"Belt Creek near Monarch MT","06090550":"Little Otter Creek near Raynesford MT","06076690":"Smith River near Ft Logan MT","06077200":"Smith River bl Eagle Cr nr Fort Logan MT","06077500":"Smith River near Eden MT","06078500":"North Fork Sun River near Augusta MT","06079000":"South Fork Sun River near Augusta MT","06080900":"Sun River bl Diversion Dam nr Augusta MT","06082200":"Sun River bl Willow Cr nr Augusta MT","06085510":"Crown Butte creek tributary nr Simms, MT","06085800":"Sun River at Simms MT","06088500":"Muddy Creek at Vaughn MT","06089000":"Sun River near Vaughn MT","06090800":"Missouri River at Fort Benton MT","06109500":"Missouri River at Virgelle MT","06109600":"Chip Creek Trib near Winifred, MT","06115200":"Missouri River near Landusky MT","06091700":"Two Medicine River bl South Fork nr Browning MT","06092020":"Two Medicine River ab Badger Cr, nr Piegan, MT","06093200":"Badger Cr bl Four Horns Canal nr Browning MT","06094900":"Birch Cr bl Heart Butte Road, nr Heart Butte, MT","06097000":"Birch Creek at Robare, MT","06097300":"Cartwright Coulee nr Dupuyer","06098120":"Birch Creek at Bullhead Bridge, nr Valier, MT","06098700":"Powell Coulee near Browning MT","06098800":"Cut Bank Cr ab Gillam Coulee, nr Sundance, MT","06099000":"Cut Bank Creek at Cut Bank MT","06099500":"Marias River near Shelby MT","06100300":"Lone Man Coulee near Valier MT","06101200":"Willow Creek near Galata, MT","06101500":"Marias River near Chester MT","06101520":"Favot Coulee trib near Ledger MT","06101630":"Marias River at Highway 223 bridge near Chester,MT","06102050":"Marias River near Loma MT","06102500":"Teton River bl South Fork nr Choteau MT","06108800":"Teton River at Loma MT","06110020":"Judith River above Carr Creek near Utica MT","06111800":"Big Spring Cr at R&B Trading Post nr Lewistown MT","06114550":"Wolf Creek trib near Coffee Creek MT","06114700":"Judith River nr mouth, nr Winifred MT","06119600":"Musselshell River nr Martinsdale, MT","06120500":"Musselshell River at Harlowton MT","06120900":"Antelope Creek at Harlowton, MT","06123030":"Musselshell River ab Mud Cr nr Shawmut MT","06123200":"Sadie Cr tributary nr Harlowton MT","06125600":"Musselshell River ab Big Coulee Creek at Lavina MT","06126500":"Musselshell River near Roundup MT","06127500":"Musselshell River at Musselshell MT","06128500":"South Fork Bear Cr Tributary nr Roy MT","06130000":"Flatwillow Creek near Mosby MT","06130500":"Musselshell River at Mosby MT","06130610":"Bair Coulee near Mosby MT","06130630":"Crooked Creek Tributary nr Roy, MT","06130915":"Russian Coulee near Jordan MT","06131200":"Nelson Creek near Van Norman MT","06131300":"Mcguire Creek trib near Van Norman MT","06133000":"Milk River at western crossing of int'l boundary","06133500":"N F Milk River ab St. Mary canal nr Browning MT","06134000":"North Milk River near international boundary","06134500":"Milk River at Milk River Alberta","06135000":"Milk River at Eastern Crossing of Int Bndry","06137570":"Boxelder Creek near Rocky Boy, MT","06137572":"Boxelder Cr bl Boneau Reservoir, nr Rocky Boy, MT","06137574":"Boxelder Cr bl Brown's Res Div, nr Box Elder, MT","06137575":"Boxelder Creek at Box Elder, MT","06137600":"Sage Creek trib no 2 near Joplin MT","06138580":"Big Sandy Cr ab Spring Coulee, nr Laredo, MT","06139500":"Big Sandy Creek near Havre MT","06139800":"West Fork Beaver Creek nr Rocky Boy, MT","06139850":"Beaver Creek ab Elk Creek, nr Rocky Boy, MT","06139900":"Beaver Cr at Res Bndry nr Rocky Boy MT","06140500":"Milk River at Havre MT","06142400":"Clear Creek near Chinook MT","06143900":"Redrock Coulee near Chinook, MT","06145500":"Lodge Creek below McRae Creek, at int'l boundary","06146980":"Lodge Creek near Chinook, MT","06149500":"Battle Creek at international boundary","06151500":"Battle Creek near Chinook MT","06153400":"Fifteenmile Creek trib near Zurich MT","06153800":"Milk River at Merrill Rd, nr Harlem, MT","06154100":"Milk River near Harlem MT","06154350":"Peoples Creek trib near Lloyd MT","06154390":"Peoples Creek near Cleveland, MT","06154400":"Peoples Creek near Hays MT","06154410":"Little Peoples Creek near Hays, MT","06154430":"Lodge Pole Creek at Lodge Pole, MT","06155030":"Milk River near Dodson MT","06155500":"Milk River at Malta MT","06156100":"Lush Coulee near Whitewater MT","06164000":"Frenchman River at international boundary","06164510":"Milk River at Juneberg Bridge nr Saco MT","06164600":"Beaver Creek trib near Zortman MT","06164623":"Little Warm Cr Tributary nr Lodge Pole MT","06166000":"Beaver Cr bl Guston Coulee nr Saco MT","06167500":"Beaver Creek near Hinsdale MT","06169500":"Rock Creek bl Horse Creek nr int'l boundary","06172300":"Unger Creek near Vandalia MT","06172310":"Milk River at Tampico MT","06174500":"Milk River at Nashua MT","06175100":"Missouri R at W Frazer Pump Plant nr Frazer MT","06175510":"Missouri R at E Frazer Pump Plant nr Frazer MT","06177000":"Missouri River near Wolf Point MT","06177020":"Tule Creek trib near Wolf Point MT","06177100":"Duck Creek near Brockway, MT","06177500":"Redwater River at Circle MT","06177700":"Cow Creek Tributary near Vida, MT","06177825":"Redwater River near Vida MT","06185500":"Missouri River near Culbertson MT","06178000":"Poplar River at international boundary","06178500":"East Poplar River at international boundary","06179100":"Butte Creek trib near Four Buttes MT","06179200":"Poplar R ab W Fk Poplar R, nr Bredette, MT","06181000":"Poplar River near Poplar MT","06183450":"Big Muddy Creek near Antelope MT","06184200":"Lost Creek trib near Homestead MT","06185110":"Big Muddy Creek nr mouth nr Culbertson MT","06186500":"Yellowstone River at Yellowstone Lk Outlet YNP","06187915":"Soda Butte Cr at Park Bndry at Silver Gate","06188000":"Lamar River nr Tower Ranger Station YNP","06190540":"Boiling River at Mammoth,YNP","06191000":"Gardner River near Mammoth, YNP","06191500":"Yellowstone River at Corwin Springs MT","06192500":"Yellowstone River near Livingston, MT","06192978":"Shields River bl SF Shields River nr Wilsall, MT","06195600":"Shields River nr Livingston MT","06195750":"Yellowstone River at Springdale, MT","06195950":"Yellowstone River at Big Timber, MT","06197800":"East Boulder River bl Dry Fork Cr nr Mcleod, MT","06200000":"Boulder River at Big Timber MT","06204050":"West Rosebud Creek near Roscoe MT","06204070":"W Rosebud Cr at Emerald Lk Campground nr Roscoe","06204170":"Meadow Creek nr Dean, MT","06205000":"Stillwater River near Absarokee, MT","06207500":"Clarks Fork Yellowstone River nr Belfry MT","06207800":"Bluewater Creek near Bridger, MT","06208500":"Clarks Fork Yellowstone River at Edgar MT","06209500":"Rock Creek near Red Lodge MT","06210950":"Cole Creek near Red Lodge, MT","06211000":"Red Lodge Cr ab Cooney Re nr Boyd MT","06211500":"Willow Creek near Boyd MT","06214500":"Yellowstone River at Billings MT","06274300":"BIGHORN RIVER AT BASIN, WY","06278300":"Shell Creek above Shell Reservoir, WY","06279500":"BIGHORN RIVER AT KANE, WY","06279940":"NORTH FORK SHOSHONE RIVER AT WAPITI, WY","06280300":"SOUTH FORK SHOSHONE RIVER NEAR VALLEY, WY","06281000":"SOUTH FORK SHOSHONE RIVER AB BUFFALO BILL RES, WY","06285100":"SHOSHONE RIVER NEAR LOVELL, WY","06287000":"Bighorn R bl Yellowtail Afterbay Dam nr St. Xavier","06287800":"Bighorn River at bridge, at St. Xavier, MT","06288400":"Bighorn River at Two Leggins Bridge, near Hardin","06294400":"Andresen Coulee near Custer MT","06294500":"Bighorn River ab Tullock Cr nr Bighorn MT","06289000":"Little Bighorn River at State Line nr Wyola MT","06290500":"Little Bighorn R bl Pass Cr nr Wyola MT","06291500":"Lodge Grass Cr ab Willow Cr diversion, nr Wyola MT","06293500":"Little Bighorn River nr Crow Agency MT","06294000":"Little Bighorn River near Hardin MT","06217300":"Twelvemile Creek near Shepherd MT","06294930":"Sarpy Creek trib near Colstrip MT","06295000":"Yellowstone River at Forsyth MT","06296115":"Reservation Creek near Miles City MT","06307520":"Canyon Creek near Birney, MT","06307720":"Brian Creek near Ashland MT","06308330":"Deer Creek trib near Volborg MT","06309000":"Yellowstone River at Miles City, MT","06309040":"Dry House Creek near Angela, MT","06309080":"Deep Creek near Kinsey MT","06324995":"Badger Creek at Biddle MT","06325700":"Deep Creek near Powderville MT","06326580":"Lame Jones Creek trib near Willard MT","06326950":"Yellowstone River Tributary no. 5 nr Marsh MT","06327450":"Cains Coulee at Glendive MT","06327500":"Yellowstone River at Glendive, MT","06327550":"South Fork Horse Cr trib nr Wibaux MT","06327720":"Griffith Creek trib near Glendive MT","06328100":"Yellowstone River trib no 6 nr Glendive MT","06328495":"Yellowstone River Fish Bypass Channel nr Intake MT","06329500":"Yellowstone River near Sidney MT","06334330":"Little Missouri River trib nr Albion MT","06295113":"Rosebud C at Reservation Bndry nr Kirby MT","06295220":"Rosebud C Bel Lame Deer C nr Lame Deer MT","06306000":"Tongue River near Acme, WY","06306300":"Tongue River at State Line nr Decker MT","06307500":"Tongue River at Tongue R Dam nr Decker MT","06307616":"Tongue R at Birney Day School Br nr Birney MT","06307662":"Tongue River at Ashland, MT","06307830":"Tongue R bl Brandenberg bridge nr Ashland MT","06308500":"Tongue River at Miles City, MT","06309200":"MIDDLE FORK POWDER RIVER NEAR BARNUM, WY","06313400":"SALT CREEK NEAR SUSSEX, WY","06317000":"POWDER RIVER AT ARVADA, WY","06318500":"CLEAR CREEK NEAR BUFFALO, WY","06324500":"Powder River at Moorhead MT","06326500":"Powder River near Locate MT","12301250":"Tobacco River at Eureka, MT","12301933":"Kootenai River bl Libby Dam nr Libby MT","12302055":"Fisher River near Libby MT","12304500":"Yaak River near Troy MT","12323233":"Blacktail Creek above Grove Gulch, at Butte, MT","12323242":"Silver Bow Creek at Montana Street, at Butte, MT","12323250":"Silver Bow Cr bl Blacktail Cr, at Butte, MT","12323600":"Silver Bow Creek at Opportunity MT","12323670":"Mill Creek nr Anaconda, MT","12323700":"Mill Creek at Opportunity, MT","12323710":"Willow Creek nr Anaconda, MT","12323720":"Willow Creek at Opportunity, MT","12323750":"Silver Bow Creek at Warm Springs MT","12323760":"Warm Springs Creek near Anaconda MT","12323770":"Warm Springs Creek at Warm Springs MT","12323800":"Clark Fork near Galen MT","12323840":"Lost Creek near Anaconda MT","12323850":"Lost Creek near Galen, MT","12324200":"Clark Fork at Deer Lodge MT","12324400":"Clark Fork ab Little Blackfoot R nr Garrison MT","12324590":"Little Blackfoot River near Garrison MT","12324680":"Clark Fork at Goldcreek MT","12325500":"Flint Creek near Southern Cross MT","12329500":"Flint Creek at Maxville MT","12330000":"Boulder Creek at Maxville MT","12331500":"Flint Creek near Drummond MT","12331800":"Clark Fork near Drummond MT","12332000":"Middle Fork Rock Cr nr Philipsburg MT","12334510":"Rock Creek near Clinton MT","12334550":"Clark Fork at Turah Bridge nr Bonner MT","12340500":"Clark Fork above Missoula MT","12353000":"Clark Fork below Missoula MT","12353650":"Clark Fork at Superior, MT","12354000":"St. Regis River near St. Regis, MT","12354500":"Clark Fork at St. Regis MT","12354700":"Clark Fork near Paradise, MT","12389000":"Clark Fork near Plains MT","12389500":"Thompson River near Thompson Falls MT","12390700":"Prospect Creek at Thompson Falls MT","12335100":"Blackfoot R ab Nevada Cr nr Helmville MT","12335500":"Nevada Cr ab reservoir, nr Helmville, MT","12338300":"NF Blackfoot R ab Dry Gulch nr Ovando MT","12340000":"Blackfoot River near Bonner MT","12342500":"West Fork Bitterroot River nr Conner MT","12344000":"Bitterroot River near Darby MT","12350250":"Bitterroot River at Bell Crossing nr Victor MT","12352500":"Bitterroot River near Missoula MT","12355000":"Flathead River at Flathead British Columbia","12355500":"N F Flathead River nr Columbia Falls MT","12358500":"M F Flathead River near West Glacier MT","12359800":"S F Flathead R ab Twin C nr Hungry Horse MT","12362500":"S F Flathead River nr Columbia Falls MT","12363000":"Flathead River at Columbia Falls MT","12365700":"Stillwater River at Lawrence Park, at Kalispell","12366000":"Whitefish River near Kalispell MT","12366500":"Flathead River at Foys Bend nr Kalispell MT","12370000":"Swan River near Bigfork, MT","12372000":"Flathead River near Polson MT","12377150":"Mission Creek ab reservoir nr St. Ignatius MT","12381400":"South Fork Jocko River near Arlee MT","12388700":"Flathead River at Perma MT","06218500":"WIND RIVER NEAR DUBOIS, WY","06220800":"WIND RIVER ABOVE RED CREEK, NEAR DUBOIS, WY","06221400":"DINWOODY CREEK ABOVE LAKES, NEAR BURRIS, WY","06224000":"BULL LAKE CREEK ABOVE BULL LAKE, WY","06227600":"WIND RIVER NEAR KINNEAR, WY","06228000":"WIND RIVER AT RIVERTON, WY","06228350":"SF L WIND RIV AB WASHAKIE RES, NR FT WASHAKIE, WY","06235500":"LITTLE WIND RIVER NEAR RIVERTON, WY","06236100":"WIND RIVER AB BOYSEN RESERVOIR, NR SHOSHONI, WY","06253000":"FIVEMILE CREEK NEAR SHOSHONI, WY","06258000":"MUDDY CREEK NEAR SHOSHONI, WY","06620000":"NORTH PLATTE RIVER NEAR NORTHGATE, CO","06622700":"NORTH BRUSH CREEK NEAR SARATOGA, WY","06623800":"ENCAMPMENT RIVER AB HOG PARK CR, NR ENCAMPMENT, WY","06625000":"ENCAMPMENT RIVER AT MOUTH, NEAR ENCAMPMENT, WY","06630000":"N PLATTE RIV AB SEMINOE RESERVOIR, NR SINCLAIR, WY","06630465":"Medicine Bow R ab E Fk Med Bow nr Elk Mountain, WY","06632400":"ROCK CREEK AB KING CANYON CANAL, NR ARLINGTON, WY","06634060":"L Medicine Bow R ab Sand Cr, nr Shirley Basin, WY","06634620":"L MEDICINE BOW R AT BOLES SPRING, NR MEDICINE BOW","06635000":"MEDICINE BOW R AB SEMINOE RESERVOIR, NR HANNA, WY","06646000":"DEER CREEK IN CANYON, NEAR GLENROCK, WY","06652000":"NORTH PLATTE RIVER AT ORIN, WY","06657000":"NORTH PLATTE RIVER BELOW WHALEN DIVERSION DAM, WY","06660000":"LARAMIE RIVER AT LARAMIE, WY","06670500":"LARAMIE RIVER NEAR FORT LARAMIE, WY","09188500":"GREEN RIVER AT WARREN BRIDGE, NEAR DANIEL, WY","09189020":"Forty Rod Creek at Daniel Hatchery, nr Daniel, WY","09191150":"North Cottonwood Cr bl Halverson Cr, nr Daniel, WY","09192750":"New Fork River ab New Fork Lakes, nr Cora, WY","09193700":"New Fork River ab Willow Cr, nr Cora, WY","09195000":"Lake Creek below Willow Lake, nr Cora, WY","09195600":"Duck Creek above New Fork R nr Pinedale","09196000":"New Fork River above Pine Cr, nr Pinedale, WY","09196500":"PINE CREEK ABOVE FREMONT LAKE, WY","09201500":"Boulder Creek above Boulder Lake, near Boulder, WY","09202000":"Boulder Creek bl Boulder Lake, nr Boulder, WY","09202700":"Ward Ball Reservoir outflow, nr Boulder, WY","09203500":"East Fork River ab East Fork Canal, nr Boulder, WY","09204500":"East Fork at New Fork, WY","09205000":"NEW FORK RIVER NEAR BIG PINEY, WY","09205300":"Muddy Creek at mouth, near Big Piney, WY","09209400":"GREEN RIVER NEAR LA BARGE, WY","09210500":"FONTENELLE C NR HERSCHLER RANCH, NR FONTENELLE, WY","09211200":"GREEN RIVER BELOW FONTENELLE RESERVOIR, WY","09213500":"BIG SANDY RIVER NEAR FARSON, WY","09216050":"Big Sandy River at Gasson Bridge, near Eden, WY","09216550":"DEADMAN WASH NEAR POINT OF ROCKS, WY","09216560":"BITTER CREEK NEAR POINT OF ROCKS, WY","09216950":"Bitter Creek near Green River, WY","09217000":"GREEN RIVER NEAR GREEN RIVER, WY","09217010":"GREEN RIVER BELOW GREEN RIVER, WY","09217900":"BLACKS FORK NEAR ROBERTSON, WY","09218500":"BLACKS FORK NEAR MILLBURNE, WY","09218850":"Blacks Fork bl Blacks Fork Canal, nr Robertson, WY","09218895":"Blacks Fork bl Little Blacks Fk at Fort Bridger WY","09219200":"Blacks Fork above Smiths Fork, near Lyman, WY","09220000":"East Fork Smiths Fork near Robertson, WY","09221505":"South Creek at Mountain View, WY","09222100":"Muddy Creek near Piedmont, WY","09222400":"MUDDY CREEK NEAR HAMPTON, WY","09223000":"HAMS FORK BELOW POLE CREEK, NEAR FRONTIER, WY","09224000":"Hams Fork at Diamondville, WY","09224700":"BLACKS FORK NEAR LITTLE AMERICA, WY","09228000":"Henrys Fork near Burntfork, WY","09229500":"HENRYS FORK NEAR MANILA, UT","13010065":"SNAKE RIVER AB JACKSON LAKE AT FLAGG RANCH WY","13011000":"SNAKE RIVER NEAR MORAN, WY","13011500":"Pacific Creek at Moran, WY","13011820":"Blackrock Cr bl Split Rock Cr, nr Moran, WY","13011900":"BUFFALO FORK AB LAVA CREEK, NR MORAN, WY","13013650":"SNAKE RIVER AT MOOSE, WY","13014300":"GROS VENTRE R AB UPPER SLIDE LK, NR KELLY, WY","13014500":"GROS VENTRE RIVER AT KELLY, WY","13015000":"GROS VENTRE RIVER AT ZENITH, WY","13016305":"GRANITE C AB GRANITE C SUPPLEMENTAL, NR MOOSE, WY","13016450":"FISH CREEK AT WILSON, WY","13018300":"CACHE CREEK NEAR JACKSON, WY","13018350":"FLAT CREEK BELOW CACHE CREEK, NEAR JACKSON, WY","13018750":"SNAKE RIVER BELOW FLAT CREEK, NEAR JACKSON, WY","13019500":"HOBACK RIVER NEAR JACKSON, WY","13022500":"SNAKE RIVER ABOVE RESERVOIR, NEAR ALPINE, WY","13025500":"CROW CREEK NEAR FAIRVIEW, WY","09253470":"Battle Cr bl West Fork Battle Cr, near Slater, CO","09255200":"Little Snake River ab Savery Cr, nr Savery, WY","09257000":"LITTLE SNAKE RIVER NEAR DIXON, WY","09258050":"Muddy Creek above Olson Draw, near Dad, WY","09258980":"MUDDY CREEK BELOW YOUNG DRAW, NEAR BAGGS, WY","09259050":"Little Snake R bl Gibson Blair Ditch, nr Baggs, WY","09259700":"Little Snake River bl Dry Gulch, nr Baggs, WY","10016900":"BEAR RIVER AT EVANSTON, WY","06426500":"BELLE FOURCHE RIVER BELOW MOORCROFT, WY","06427850":"BELLE FOURCHE RIVER AT DEVILS TOWER, WY","05014500":"Swiftcurrent Creek at Many Glacier MT","05017500":"St. Mary River near Babb MT","05020500":"St. Mary River at International Boundary","06638090":"SWEETWATER RIVER NEAR SWEETWATER STATION, WY"};
+const OFFICES = {
+  "Western MT":["06012500","06015460","06016000","06017000","06018500","06019500","06020600","06023000","06023100","06024450","06024540","06024580","06025250","06025500","06026210","06026420","12301250","12301933","12302055","12304500","12323233","12323242","12323250","12323600","12323670","12323700","12323710","12323720","12323750","12323760","12323770","12323800","12323840","12323850","12324200","12324400","12324590","12324680","12325500","12329500","12330000","12331500","12331800","12332000","12334510","12334550","12335100","12335500","12338300","12340000","12340500","12342500","12344000","12345510","12350250","12352500","12353000","12353650","12354000","12354500","12354700","12355000","12355500","12358500","12359800","12362500","12363000","12365700","12366000","12366500","12370000","12372000","12377150","12381400","12388700","12389000","12389500","12390700"],
+  "Central MT":["06006000","06015430","06026500","06027600","06031950","06033000","06034700","06035000","06036650","06036805","06036905","06037100","06037500","06038500","06038550","06038800","06040000","06040050","06040800","06041000","06041500","06043120","06043300","06043500","06048650","06050000","06052500","06053050","06054500","06056300","06061500","06062500","06063000","06065500","06066500","06071300","06071400","06073500","06073600","06074000","06076690","06077200","06077500","06078200","06078500","06079000","06080900","06082200","06085800","06088500","06089000","06090300","06090500","06090550","06090800","06091700","06092020","06093200","06094900","06097000","06098120","06098800","06099000","06099500","06101200","06101500","06101630","06102050","06102500","06108800","06109500","06114700","06137570","06137575","06138580","06139500","06139800","06139850","06139900","06192978"],
+  "Eastern MT":["06110020","06111800","06115200","06119600","06120500","06120900","06123030","06125600","06126500","06127500","06130000","06130500","06131200","06153800","06154100","06154390","06154400","06154410","06154430","06155030","06155500","06164510","06167500","06172300","06172310","06174500","06175100","06175510","06177000","06177100","06177500","06177825","06179200","06181000","06183450","06185110","06185500","06192500","06195600","06195750","06195950","06197800","06200000","06204050","06204070","06204170","06205000","06207500","06207800","06208500","06209500","06210950","06211000","06211500","06214500","06217300","06287000","06287800","06288400","06294500","06295000","06296115","06307520","06307720","06309000","06309040","06309080","06324995","06325700","06327500","06328495","06329500"],
+  "Eastern WY":["06036940","06186500","06187915","06188000","06190540","06191000","06191500","06274300","06278300","06279500","06279940","06280300","06281000","06285100","06289000","06290500","06291500","06293500","06294000","06295113","06295220","06306000","06306300","06307500","06307616","06307662","06307830","06308500","06309200","06313400","06317000","06318500","06324500","06326500","06426500","06427850","06454100","06620000","06622700","06623800","06625000","06630000","06630465","06632400","06634060","06634620","06635000","06646000","06652000","06657000","06660000","06670500","09253470","09255200","09257000","09258050","09258980","09259050","09259700"],
+  "North MT":["05014500","05017500","05020500","06133000","06133500","06134000","06134500","06135000","06140500","06142400","06145500","06146980","06149500","06151500","06164000","06169500","06178000","06178500"],
+  "Western WY":["06218500","06220800","06221400","06224000","06227600","06228000","06228350","06235500","06236100","06253000","06258000","06638090","09188500","09189020","09191150","09192750","09193700","09195000","09195600","09196000","09196500","09201500","09202000","09202700","09203500","09204500","09205000","09205300","09209400","09210500","09211200","09213500","09216050","09216550","09216560","09216950","09217000","09217010","09217900","09218500","09218850","09218895","09219200","09220000","09221505","09222100","09222400","09223000","09224000","09224700","09228000","09229500","10016900","13010065","13011000","13011500","13011820","13011900","13013650","13014300","13014500","13015000","13016305","13016450","13018300","13018350","13018750","13019500","13022500","13025500"]
+};
+
+const ALL_SITES = Object.entries(SITE_COORDS).map(([id,c]) => ({id, name: SITE_NAMES[id]||id}));
+
+// Fetch last 48 hours of IV data for given sites
+async function fetchIV48h(siteIds) {
+    const results = {};
+    const batchSize = 50;
+    for (let i = 0; i < siteIds.length; i += batchSize) {
+        const batch = siteIds.slice(i, i + batchSize);
+        try {
+            const url = `https://waterservices.usgs.gov/nwis/iv/?format=json&sites=${batch.join(',')}&parameterCd=00060,00065&period=P2D&siteStatus=active`;
+            const resp = await fetch(url);
+            if (!resp.ok) continue;
+            const data = await resp.json();
+            for (const ts of (data?.value?.timeSeries || [])) {
+                const sid = ts.sourceInfo.siteCode[0].value;
+                const param = ts.variable.variableCode[0].value;
+                const values = ts.values[0].value || [];
+                if (!results[sid]) results[sid] = {name: ts.sourceInfo.siteName};
+                results[sid][param] = values.map(v => ({
+                    time: new Date(v.dateTime).getTime(),
+                    value: parseFloat(v.value),
+                    qual: v.qualifiers || []
+                })).filter(v => !isNaN(v.value));
+            }
+        } catch(e) { continue; }
+    }
+    return results;
+}
+
+// CHECK 1: Stale data - last value is > 4 hours old
+function checkStale(siteData) {
+    const issues = [];
+    const now = Date.now();
+    const threshold = 4 * 60 * 60 * 1000; // 4 hours
+    for (const [sid, data] of Object.entries(siteData)) {
+        const params = [data['00060'], data['00065']].filter(Boolean);
+        if (!params.length) continue;
+        let latestTime = 0;
+        for (const p of params) {
+            if (p.length) latestTime = Math.max(latestTime, p[p.length-1].time);
+        }
+        if (latestTime > 0 && (now - latestTime) > threshold) {
+            const hoursAgo = ((now - latestTime) / 3600000).toFixed(1);
+            issues.push({id: sid, name: data.name, issue: 'Stale Data', detail: `Last value ${hoursAgo} hours ago`, type: 'stale'});
+        }
+    }
+    return issues;
+}
+
+// CHECK 2: Missed transmits - gaps > 20 min in the last 24h
+function checkMissedTransmits(siteData) {
+    const issues = [];
+    const now = Date.now();
+    const last24h = now - 24*60*60*1000;
+    for (const [sid, data] of Object.entries(siteData)) {
+        const vals = data['00060'] || data['00065'];
+        if (!vals || vals.length < 10) continue;
+        const recent = vals.filter(v => v.time >= last24h);
+        if (recent.length < 5) continue;
+        let gaps = 0;
+        for (let i = 1; i < recent.length; i++) {
+            const diff = recent[i].time - recent[i-1].time;
+            if (diff > 20*60*1000) gaps++; // > 20 min gap
+        }
+        if (gaps >= 3) {
+            issues.push({id: sid, name: data.name, issue: 'Missed Transmits', detail: `${gaps} gaps (>20 min) in last 24h`, type: 'missed'});
+        }
+    }
+    return issues;
+}
+
+// CHECK 3: Flat line - same value for > 6 hours (discharge or gage height)
+function checkFlatLine(siteData) {
+    const issues = [];
+    for (const [sid, data] of Object.entries(siteData)) {
+        for (const paramCode of ['00060', '00065']) {
+            const vals = data[paramCode];
+            if (!vals || vals.length < 20) continue;
+            // Find longest run of identical values
+            let maxRun = 1, currentRun = 1;
+            let flatVal = null, flatStart = 0, flatEnd = 0;
+            for (let i = 1; i < vals.length; i++) {
+                if (Math.abs(vals[i].value - vals[i-1].value) < 0.001) {
+                    currentRun++;
+                    if (currentRun > maxRun) {
+                        maxRun = currentRun;
+                        flatVal = vals[i].value;
+                        flatStart = vals[i - currentRun + 1].time;
+                        flatEnd = vals[i].time;
+                    }
+                } else {
+                    currentRun = 1;
+                }
+            }
+            const flatHours = (flatEnd - flatStart) / 3600000;
+            if (flatHours >= 6 && flatVal !== 0) { // Ignore sites that naturally sit at 0
+                const paramName = paramCode === '00060' ? 'Discharge' : 'Gage Height';
+                issues.push({id: sid, name: data.name, issue: 'Flat Line', detail: `${paramName} stuck at ${flatVal} for ${flatHours.toFixed(1)} hours`, type: 'flat'});
+                break; // one per site
+            }
+        }
+    }
+    return issues;
+}
+
+// CHECK 4: Heavy painting - many values cluster at same number (possible buried sensor)
+// Looks for > 50% of recent values being within 0.01 of each other
+function checkHeavyPainting(siteData) {
+    const issues = [];
+    for (const [sid, data] of Object.entries(siteData)) {
+        const vals = data['00065']; // gage height is best indicator
+        if (!vals || vals.length < 50) continue;
+        // Look at last 24h
+        const now = Date.now();
+        const recent = vals.filter(v => v.time >= now - 24*60*60*1000);
+        if (recent.length < 30) continue;
+        // Count how many values cluster within 0.02 ft of the mode
+        const rounded = recent.map(v => Math.round(v.value * 50) / 50); // round to 0.02
+        const freq = {};
+        for (const r of rounded) freq[r] = (freq[r]||0) + 1;
+        const maxFreq = Math.max(...Object.values(freq));
+        const pct = maxFreq / recent.length;
+        if (pct >= 0.5 && recent.length > 40) {
+            const modeVal = Object.keys(freq).find(k => freq[k] === maxFreq);
+            issues.push({id: sid, name: data.name, issue: 'Heavy Painting', detail: `${(pct*100).toFixed(0)}% of gage height values at ${modeVal} ft (possible buried sensor)`, type: 'paint'});
+        }
+    }
+    return issues;
+}
+
+// Get office for a site
+function getOffice(siteId) {
+    for (const [office, ids] of Object.entries(OFFICES)) {
+        if (ids.includes(siteId)) return office;
+    }
+    return '';
+}
+
+// Main diagnostics run
+async function runDiagnostics() {
+    const btn = document.getElementById('runBtn');
+    const status = document.getElementById('statusBar');
+    btn.disabled = true;
+    btn.textContent = 'Running...';
+
+    const allIds = ALL_SITES.map(s => s.id);
+    status.className = 'status-bar loading';
+    status.textContent = `Fetching 48h IV data for ${allIds.length} sites...`;
+
+    try {
+        const siteData = await fetchIV48h(allIds);
+        const reporting = Object.keys(siteData).length;
+        status.textContent = `Analyzing ${reporting} sites...`;
+
+        const stale = checkStale(siteData);
+        const missed = checkMissedTransmits(siteData);
+        const flat = checkFlatLine(siteData);
+        const paint = checkHeavyPainting(siteData);
+
+        const totalIssues = stale.length + missed.length + flat.length + paint.length;
+
+        // Summary cards
+        const summary = document.getElementById('summary');
+        summary.style.display = 'grid';
+        summary.innerHTML = `
+            <div class="summary-card card-stale"><div class="number">${stale.length}</div><div class="label">Stale Data</div></div>
+            <div class="summary-card card-missed"><div class="number">${missed.length}</div><div class="label">Missed Transmits</div></div>
+            <div class="summary-card card-flat"><div class="number">${flat.length}</div><div class="label">Flat Lines</div></div>
+            <div class="summary-card card-paint"><div class="number">${paint.length}</div><div class="label">Heavy Painting</div></div>
+            <div class="summary-card card-ok"><div class="number">${reporting - new Set([...stale,...missed,...flat,...paint].map(i=>i.id)).size}</div><div class="label">Sites OK</div></div>`;
+
+        // Results tables
+        let html = '';
+        const sections = [
+            {title: 'Stale Data (no values in 4+ hours)', items: stale, badgeClass: 'badge-stale'},
+            {title: 'Missed Transmits (3+ gaps in 24h)', items: missed, badgeClass: 'badge-missed'},
+            {title: 'Flat Line (unchanged 6+ hours)', items: flat, badgeClass: 'badge-flat'},
+            {title: 'Heavy Painting (possible buried sensor)', items: paint, badgeClass: 'badge-paint'},
+        ];
+
+        for (const sec of sections) {
+            if (!sec.items.length) continue;
+            html += `<div class="section"><div class="section-header" onclick="this.nextElementSibling.classList.toggle('hidden')"><span>${sec.title}</span><span class="badge ${sec.badgeClass}">${sec.items.length}</span></div><div class="section-body" style="padding:10px 20px"><table class="diag-table"><thead><tr><th>Site</th><th>ID</th><th>Office</th><th>Detail</th></tr></thead><tbody>`;
+            for (const item of sec.items) {
+                html += `<tr><td><strong>${item.name}</strong></td><td style="font-family:monospace;font-size:0.85em">${item.id}</td><td style="font-size:0.85em">${getOffice(item.id)}</td><td>${item.detail}</td></tr>`;
+            }
+            html += '</tbody></table></div></div>';
+        }
+
+        if (!totalIssues) html = '<div style="text-align:center;padding:40px;color:#059669;font-size:1.1em;font-weight:600">All sites reporting normally. No issues detected.</div>';
+        document.getElementById('results').innerHTML = html;
+
+        status.className = totalIssues ? 'status-bar error' : 'status-bar success';
+        status.textContent = totalIssues ? `${totalIssues} issue(s) found across ${new Set([...stale,...missed,...flat,...paint].map(i=>i.id)).size} sites. ${reporting} sites checked.` : `All ${reporting} sites OK. No issues detected.`;
+        document.getElementById('lastRun').textContent = `Last run: ${new Date().toLocaleString()}`;
+
+    } catch(e) {
+        status.className = 'status-bar error';
+        status.textContent = `Error: ${e.message}`;
+    }
+    btn.disabled = false;
+    btn.textContent = 'Run Diagnostics';
+}
+</script>
+</body>
+</html>
