@@ -131,11 +131,11 @@
 <script>
 // ===== QW CONFIGURATION =====
 const QW_PARAMS = [
-    { code: '00095', name: 'Specific Conductance', unit: 'Ã‚ÂµS/cm', abbr: 'SC' },
+    { code: '00095', name: 'Specific Conductance', unit: 'µS/cm', abbr: 'SC' },
     { code: '00300', name: 'Dissolved Oxygen', unit: 'mg/L', abbr: 'DO' },
     { code: '00400', name: 'pH', unit: '', abbr: 'pH' },
     { code: '63680', name: 'Turbidity', unit: 'FNU', abbr: 'Turb' },
-    { code: '00010', name: 'Water Temperature', unit: 'Ã‚Â°C', abbr: 'Temp' }
+    { code: '00010', name: 'Water Temperature', unit: '°C', abbr: 'Temp' }
 ];
 
 const QW_DRAINAGES = [
@@ -372,7 +372,7 @@ function detectSpikes(currentData, weekData, histStats) {
                 spikes.push({ type:'spike', siteId, siteName:siteInfo.name, paramCode,
                     paramName:param?.name||paramCode, paramAbbr:param?.abbr||paramCode,
                     currentVal, median:0, ratio:0,
-                    alertType:'Out of range: Temperature below -0.2Ã‚Â°C'});
+                    alertType:'Out of range: Temperature below -0.2°C'});
                 continue;
             }
             if (paramCode === '00400' && (currentVal < 4 || currentVal > 11)) {
@@ -442,17 +442,17 @@ function detectSpikes(currentData, weekData, histStats) {
                     spikes.push({ type:'spike', siteId, siteName:siteInfo.name, paramCode,
                         paramName:param?.name||paramCode, paramAbbr:param?.abbr||paramCode,
                         currentVal:currentInstMax, median: currentMedian||0, ratio: 0,
-                        alertType:`Ã¢Å¡Â¡ HIGHEST instantaneous ${param?.name||paramCode} in 7+ water years (prev max: ${stats.ivMax7yr.toFixed(1)})`});
+                        alertType:`! HIGHEST instantaneous ${param?.name||paramCode} in 7+ water years (prev max: ${stats.ivMax7yr.toFixed(1)})`});
                 } else if (stats.ivMax5yr && currentInstMax > stats.ivMax5yr) {
                     spikes.push({ type:'spike', siteId, siteName:siteInfo.name, paramCode,
                         paramName:param?.name||paramCode, paramAbbr:param?.abbr||paramCode,
                         currentVal:currentInstMax, median: currentMedian||0, ratio: 0,
-                        alertType:`Ã¢Å¡Â¡ HIGHEST instantaneous ${param?.name||paramCode} in 5+ water years (prev max: ${stats.ivMax5yr.toFixed(1)})`});
+                        alertType:`! HIGHEST instantaneous ${param?.name||paramCode} in 5+ water years (prev max: ${stats.ivMax5yr.toFixed(1)})`});
                 } else if (stats.ivMax3yr && currentInstMax > stats.ivMax3yr) {
                     spikes.push({ type:'spike', siteId, siteName:siteInfo.name, paramCode,
                         paramName:param?.name||paramCode, paramAbbr:param?.abbr||paramCode,
                         currentVal:currentInstMax, median: currentMedian||0, ratio: 0,
-                        alertType:`Ã¢Å¡Â¡ HIGHEST instantaneous ${param?.name||paramCode} in 3+ water years (prev max: ${stats.ivMax3yr.toFixed(1)})`});
+                        alertType:`! HIGHEST instantaneous ${param?.name||paramCode} in 3+ water years (prev max: ${stats.ivMax3yr.toFixed(1)})`});
                 }
 
                 // HIGH: Median vs Median (current median vs historical mean max)
@@ -461,17 +461,17 @@ function detectSpikes(currentData, weekData, histStats) {
                         spikes.push({ type:'spike', siteId, siteName:siteInfo.name, paramCode,
                             paramName:param?.name||paramCode, paramAbbr:param?.abbr||paramCode,
                             currentVal:currentMedian, median: currentMedian, ratio: 0,
-                            alertType:`Ã¢Å¡Â¡ HIGHEST median ${param?.name||paramCode} in 7+ water years (prev median max: ${stats.meanMax7yr.toFixed(1)})`});
+                            alertType:`! HIGHEST median ${param?.name||paramCode} in 7+ water years (prev median max: ${stats.meanMax7yr.toFixed(1)})`});
                     } else if (stats.meanMax5yr && currentMedian > stats.meanMax5yr) {
                         spikes.push({ type:'spike', siteId, siteName:siteInfo.name, paramCode,
                             paramName:param?.name||paramCode, paramAbbr:param?.abbr||paramCode,
                             currentVal:currentMedian, median: currentMedian, ratio: 0,
-                            alertType:`Ã¢Å¡Â¡ HIGHEST median ${param?.name||paramCode} in 5+ water years (prev median max: ${stats.meanMax5yr.toFixed(1)})`});
+                            alertType:`! HIGHEST median ${param?.name||paramCode} in 5+ water years (prev median max: ${stats.meanMax5yr.toFixed(1)})`});
                     } else if (stats.meanMax3yr && currentMedian > stats.meanMax3yr) {
                         spikes.push({ type:'spike', siteId, siteName:siteInfo.name, paramCode,
                             paramName:param?.name||paramCode, paramAbbr:param?.abbr||paramCode,
                             currentVal:currentMedian, median: currentMedian, ratio: 0,
-                            alertType:`Ã¢Å¡Â¡ HIGHEST median ${param?.name||paramCode} in 3+ water years (prev median max: ${stats.meanMax3yr.toFixed(1)})`});
+                            alertType:`! HIGHEST median ${param?.name||paramCode} in 3+ water years (prev median max: ${stats.meanMax3yr.toFixed(1)})`});
                     }
 
                     // LOW: Median vs Median
@@ -479,17 +479,17 @@ function detectSpikes(currentData, weekData, histStats) {
                         spikes.push({ type:'spike', siteId, siteName:siteInfo.name, paramCode,
                             paramName:param?.name||paramCode, paramAbbr:param?.abbr||paramCode,
                             currentVal:currentMedian, median: currentMedian, ratio: 0,
-                            alertType:`Ã¢Å¡Â¡ LOWEST median ${param?.name||paramCode} in 7+ water years (prev median min: ${stats.meanMin7yr.toFixed(1)})`});
+                            alertType:`! LOWEST median ${param?.name||paramCode} in 7+ water years (prev median min: ${stats.meanMin7yr.toFixed(1)})`});
                     } else if (stats.meanMin5yr !== undefined && stats.meanMin5yr > 0 && currentMedian < stats.meanMin5yr) {
                         spikes.push({ type:'spike', siteId, siteName:siteInfo.name, paramCode,
                             paramName:param?.name||paramCode, paramAbbr:param?.abbr||paramCode,
                             currentVal:currentMedian, median: currentMedian, ratio: 0,
-                            alertType:`Ã¢Å¡Â¡ LOWEST median ${param?.name||paramCode} in 5+ water years (prev median min: ${stats.meanMin5yr.toFixed(1)})`});
+                            alertType:`! LOWEST median ${param?.name||paramCode} in 5+ water years (prev median min: ${stats.meanMin5yr.toFixed(1)})`});
                     } else if (stats.meanMin3yr !== undefined && stats.meanMin3yr > 0 && currentMedian < stats.meanMin3yr) {
                         spikes.push({ type:'spike', siteId, siteName:siteInfo.name, paramCode,
                             paramName:param?.name||paramCode, paramAbbr:param?.abbr||paramCode,
                             currentVal:currentMedian, median: currentMedian, ratio: 0,
-                            alertType:`Ã¢Å¡Â¡ LOWEST median ${param?.name||paramCode} in 3+ water years (prev median min: ${stats.meanMin3yr.toFixed(1)})`});
+                            alertType:`! LOWEST median ${param?.name||paramCode} in 3+ water years (prev median min: ${stats.meanMin3yr.toFixed(1)})`});
                     }
                 }
 
@@ -498,17 +498,17 @@ function detectSpikes(currentData, weekData, histStats) {
                     spikes.push({ type:'spike', siteId, siteName:siteInfo.name, paramCode,
                         paramName:param?.name||paramCode, paramAbbr:param?.abbr||paramCode,
                         currentVal:currentInstMin, median: currentMedian||0, ratio: 0,
-                        alertType:`Ã¢Å¡Â¡ LOWEST instantaneous ${param?.name||paramCode} in 7+ water years (prev min: ${stats.ivMin7yr.toFixed(1)})`});
+                        alertType:`! LOWEST instantaneous ${param?.name||paramCode} in 7+ water years (prev min: ${stats.ivMin7yr.toFixed(1)})`});
                 } else if (stats.ivMin5yr !== undefined && stats.ivMin5yr > 0 && currentInstMin < stats.ivMin5yr) {
                     spikes.push({ type:'spike', siteId, siteName:siteInfo.name, paramCode,
                         paramName:param?.name||paramCode, paramAbbr:param?.abbr||paramCode,
                         currentVal:currentInstMin, median: currentMedian||0, ratio: 0,
-                        alertType:`Ã¢Å¡Â¡ LOWEST instantaneous ${param?.name||paramCode} in 5+ water years (prev min: ${stats.ivMin5yr.toFixed(1)})`});
+                        alertType:`! LOWEST instantaneous ${param?.name||paramCode} in 5+ water years (prev min: ${stats.ivMin5yr.toFixed(1)})`});
                 } else if (stats.ivMin3yr !== undefined && stats.ivMin3yr > 0 && currentInstMin < stats.ivMin3yr) {
                     spikes.push({ type:'spike', siteId, siteName:siteInfo.name, paramCode,
                         paramName:param?.name||paramCode, paramAbbr:param?.abbr||paramCode,
                         currentVal:currentInstMin, median: currentMedian||0, ratio: 0,
-                        alertType:`Ã¢Å¡Â¡ LOWEST instantaneous ${param?.name||paramCode} in 3+ water years (prev min: ${stats.ivMin3yr.toFixed(1)})`});
+                        alertType:`! LOWEST instantaneous ${param?.name||paramCode} in 3+ water years (prev min: ${stats.ivMin3yr.toFixed(1)})`});
                 }
             }
         }
@@ -677,13 +677,13 @@ function isSpiked(siteId, paramCode, spikes) {
 }
 
 function formatVal(val, paramCode, siteId, spikes) {
-    if (val === null) return '<td class="val-na">Ã¢â‚¬â€</td>';
+    if (val === null) return '<td class="val-na">-"</td>';
     const v = val.value;
     if (v === undefined || v === null) return '<td class="val-na">N/A</td>';
     const spiked = isSpiked(siteId, paramCode, spikes);
     const display = paramCode === '00400' ? v.toFixed(1) : (v >= 100 ? Math.round(v) : v.toFixed(1));
     if (spiked) {
-        return `<td class="val-num spike-flag">Ã¢Å¡Â  ${display}</td>`;
+        return `<td class="val-num spike-flag">!  ${display}</td>`;
     }
     return `<td class="val-num">${display}</td>`;
 }
@@ -725,7 +725,7 @@ function renderDrainages(spikes, intersiteAlerts, correlationAlerts) {
             const turb = getCurrentValue(site.id, '63680');
             const temp = getCurrentValue(site.id, '00010');
             const latestTime = getLatestTime(site.id);
-            const timeStr = latestTime ? latestTime.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : 'Ã¢â‚¬â€';
+            const timeStr = latestTime ? latestTime.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '-"';
             // Store site index for onclick
             const siteIdx = drainage.sites.indexOf(site);
             html += `<tr class="${rowClass}" onclick="showGraph('${site.id}', ${JSON.stringify(site.name).replace(/'/g, "\\'")})" title="Click for 7-day graph">
@@ -752,22 +752,22 @@ function renderDrainages(spikes, intersiteAlerts, correlationAlerts) {
                 if (alert.type === 'spike') {
                     cls = 'spike';
                     if (alert.alertType) {
-                        title = `Ã¢Å¡Â  ${alert.alertType} - ${alert.siteName}`;
+                        title = `!  ${alert.alertType} - ${alert.siteName}`;
                         detail = `Current: ${alert.currentVal.toFixed(1)} ${alert.paramAbbr}`;
                     } else {
                         const pctAbove = ((alert.ratio - 1) * 100).toFixed(0);
                         const direction = alert.ratio > 1 ? 'above' : 'below';
                         const pctChange = alert.ratio > 1 ? pctAbove : ((1 - alert.ratio) * 100).toFixed(0);
-                        title = `Ã¢Å¡Â  ${alert.paramName} ${pctChange}% ${direction} recent average - ${alert.siteName}`;
+                        title = `!  ${alert.paramName} ${pctChange}% ${direction} recent average - ${alert.siteName}`;
                         detail = `Current: ${alert.currentVal.toFixed(1)} | 7-day average: ${alert.median.toFixed(1)} | ${pctChange}% ${direction} normal for this week`;
                     }
                 } else if (alert.type === 'intersite') {
                     cls = 'intersite';
-                    title = `Ã°Å¸â€â€” ${alert.chainName}: ${alert.paramAbbr} ratio anomaly`;
-                    detail = `${alert.upName} Ã¢â€ â€™ ${alert.downName} | Current ratio: ${alert.currentRatio} vs normal: ${alert.medianRatio} (${alert.deviation}% off)`;
+                    title = `!"  ${alert.chainName}: ${alert.paramAbbr} ratio anomaly`;
+                    detail = `${alert.upName}  ' ${alert.downName} | Current ratio: ${alert.currentRatio} vs normal: ${alert.medianRatio} (${alert.deviation}% off)`;
                 } else if (alert.type === 'correlation') {
                     cls = 'correlation';
-                    title = `Ã°Å¸â€Â¬ Correlation alert at ${alert.siteName}`;
+                    title = `!" Correlation alert at ${alert.siteName}`;
                     detail = alert.message;
                 }
                 html += `<div class="alert-item ${cls}" onclick="showAlertGraph(window._qwAlerts[${idx}])">
@@ -799,7 +799,7 @@ async function showGraph(siteId, siteName) {
             <div class="graph-title">${siteName}</div>
             <div class="graph-subtitle">Site ${siteId} - 7-Day Water Quality Parameters</div>
             <div style="position:relative;height:400px"><canvas id="siteChart"></canvas></div>
-            <div class="graph-subtitle" style="margin-top:10px">Left axis: SC (Ã‚ÂµS/cm), DO (mg/L), Temp (Ã‚Â°C) | Right axis: Turbidity (FNU) | pH scale: 0-14</div>
+            <div class="graph-subtitle" style="margin-top:10px">Left axis: SC (µS/cm), DO (mg/L), Temp (°C) | Right axis: Turbidity (FNU) | pH scale: 0-14</div>
         </div>`;
     document.body.appendChild(modal);
     await new Promise(r => setTimeout(r, 100));
@@ -809,9 +809,9 @@ async function showGraph(siteId, siteName) {
     const datasets = [];
     const colors = { '00095': '#2563eb', '00300': '#059669', '00400': '#7c3aed', '63680': '#d97706', '00010': '#dc2626' };
     const paramConfigs = [
-        { code: '00095', label: 'SC (Ã‚ÂµS/cm)', yAxis: 'y' },
+        { code: '00095', label: 'SC (µS/cm)', yAxis: 'y' },
         { code: '00300', label: 'DO (mg/L)', yAxis: 'y' },
-        { code: '00010', label: 'Temp (Ã‚Â°C)', yAxis: 'y' },
+        { code: '00010', label: 'Temp (°C)', yAxis: 'y' },
         { code: '63680', label: 'Turbidity (FNU)', yAxis: 'y1' },
         { code: '00400', label: 'pH', yAxis: 'y2' }
     ];
@@ -859,7 +859,7 @@ async function showAlertGraph(alert) {
         subtitleText = `Site ${alert.siteId} | Current: ${alert.currentVal.toFixed(1)} | 7-day median: ${alert.median.toFixed(1)}`;
     } else if (alert.type === 'intersite') {
         titleText = `${alert.paramName} Inter-site Comparison - ${alert.chainName}`;
-        subtitleText = `${alert.upName} Ã¢â€ â€™ ${alert.downName} | Ratio deviation: ${alert.deviation}%`;
+        subtitleText = `${alert.upName}  ' ${alert.downName} | Ratio deviation: ${alert.deviation}%`;
     } else if (alert.type === 'correlation') {
         titleText = `Correlation Alert - ${alert.siteName}`;
         subtitleText = alert.message;
@@ -1038,8 +1038,8 @@ async function main() {
         const sitesReporting = Object.keys(currentData).length;
         statusBar.className = totalAlerts > 0 ? 'status-bar error' : 'status-bar success';
         statusBar.textContent = totalAlerts > 0
-            ? `Ã¢Å¡Â  ${totalAlerts} alert(s) detected across ${sitesReporting} reporting sites. Last updated: ${new Date().toLocaleTimeString()}`
-            : `Ã¢Å“â€œ All ${sitesReporting} reporting sites within normal ranges. Last updated: ${new Date().toLocaleTimeString()}`;
+            ? `!  ${totalAlerts} alert(s) detected across ${sitesReporting} reporting sites. Last updated: ${new Date().toLocaleTimeString()}`
+            : `"" All ${sitesReporting} reporting sites within normal ranges. Last updated: ${new Date().toLocaleTimeString()}`;
     } catch(e) {
         statusBar.className = 'status-bar error';
         statusBar.textContent = `Error loading data: ${e.message}`;

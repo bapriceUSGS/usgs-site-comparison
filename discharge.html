@@ -867,7 +867,7 @@ function detectAnomalies(current, stats, drainages) {
             const sev = Math.abs(dev)>=T.tempHistDev*2?"critical":Math.abs(dev)>=T.tempHistDev*1.5?"high":"medium";
             anomalies.push({siteId:site.id, siteName:site.name, drainage:dr.name, severity:sev,
               type:`Temp ${dev>0?"above":"below"} historical avg`,
-              detail:`${sd["00010"].value.toFixed(1)}Ã‚Â°C vs historical mean ${hist.value.toFixed(1)}Ã‚Â°C for ${today} (${hist.count} yrs). Deviation: ${dev>0?"+":""}${dev.toFixed(1)}Ã‚Â°C`
+              detail:`${sd["00010"].value.toFixed(1)}°C vs historical mean ${hist.value.toFixed(1)}°C for ${today} (${hist.count} yrs). Deviation: ${dev>0?"+":""}${dev.toFixed(1)}°C`
             });
           }
         }
@@ -1038,7 +1038,7 @@ function detectAnomalies(current, stats, drainages) {
           const sev = Math.abs(tempDiffDeviation)>=5?"high":"medium";
           anomalies.push({siteId:dn.id, siteName:dn.name, drainage:dr.name, severity:sev,
             type:`Unusual temperature relationship between sites`,
-            detail:`${dn.name} is ${currentTempDiff>=0?"+":""}${currentTempDiff.toFixed(1)}Ã‚Â°C vs ${up.name} today, but historically the difference is ${histTempDiff>=0?"+":""}${histTempDiff.toFixed(1)}Ã‚Â°C on ${today}. Deviation: ${tempDiffDeviation>=0?"+":""}${tempDiffDeviation.toFixed(1)}Ã‚Â°C from expected pattern.`
+            detail:`${dn.name} is ${currentTempDiff>=0?"+":""}${currentTempDiff.toFixed(1)}°C vs ${up.name} today, but historically the difference is ${histTempDiff>=0?"+":""}${histTempDiff.toFixed(1)}°C on ${today}. Deviation: ${tempDiffDeviation>=0?"+":""}${tempDiffDeviation.toFixed(1)}°C from expected pattern.`
           });
         }
       }
@@ -1136,7 +1136,7 @@ async function detectDiurnalAnomalies(siteIds, drainages) {
             anomalies.push({
               siteId: sid, siteName, drainage: drainageName, severity: sev,
               type: "Possibly affected data - erratic diurnal pattern",
-              detail: `Temperature daily range increased from avg ${avgFirst.toFixed(1)}Ã‚Â°C (${firstHalf[0].date} to ${firstHalf[firstHalf.length-1].date}) to ${avgSecond.toFixed(1)}Ã‚Â°C (${secondHalf[0].date} to ${secondHalf[secondHalf.length-1].date}). ${increase.toFixed(0)}% increase in variability.`
+              detail: `Temperature daily range increased from avg ${avgFirst.toFixed(1)}°C (${firstHalf[0].date} to ${firstHalf[firstHalf.length-1].date}) to ${avgSecond.toFixed(1)}°C (${secondHalf[0].date} to ${secondHalf[secondHalf.length-1].date}). ${increase.toFixed(0)}% increase in variability.`
             });
           }
 
@@ -1154,7 +1154,7 @@ async function detectDiurnalAnomalies(siteIds, drainages) {
                 anomalies.push({
                   siteId: sid, siteName, drainage: drainageName, severity: "medium",
                   type: "Possibly affected data - unusual daily range",
-                  detail: `Temperature range on ${lastDay.date} was ${lastDay.range.toFixed(1)}Ã‚Â°C vs baseline average of ${baseline.toFixed(1)}Ã‚Â°C (${((lastDay.range/baseline)*100).toFixed(0)}% of normal range).`
+                  detail: `Temperature range on ${lastDay.date} was ${lastDay.range.toFixed(1)}°C vs baseline average of ${baseline.toFixed(1)}°C (${((lastDay.range/baseline)*100).toFixed(0)}% of normal range).`
                 });
               }
             }
@@ -1237,8 +1237,8 @@ function renderResults(drainages, current, dailyMeans, stats, anomalies) {
         const cls2 = pct<60?"pct-low":pct>140?"pct-high":"pct-ok";
         pctStr = `<span class="pct-normal ${cls2}">${pct.toFixed(0)}%</span>`;
       }
-      const tStr = t!=null ? `${t.toFixed(1)}Ã‚Â°C` : '<span class="val-na">N/A</span>';
-      const htStr = ht ? `${ht.value.toFixed(1)}Ã‚Â°C` : '<span class="val-na">-</span>';
+      const tStr = t!=null ? `${t.toFixed(1)}°C` : '<span class="val-na">N/A</span>';
+      const htStr = ht ? `${ht.value.toFixed(1)}°C` : '<span class="val-na">-</span>';
       const time = sd?.["00060"]?.dateTime || sd?.["00010"]?.dateTime || "";
       const timeStr = time ? new Date(time).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) : "";
       const siteIdx = window._siteList.length;
@@ -1251,7 +1251,7 @@ function renderResults(drainages, current, dailyMeans, stats, anomalies) {
       for (const a of da) {
         const idx = window._anomalyList.length;
         window._anomalyList.push(a);
-        html += `<div class="anomaly-item ${a.severity}" onclick="showAnomalyGraph(window._anomalyList[${idx}])"><div class="atitle"><span class="severity-tag ${a.severity}">${a.severity}</span>${a.type}</div><div><strong>${a.siteName} (${a.siteId})</strong> Ã¢â‚¬â€ ${a.detail}</div></div>`;
+        html += `<div class="anomaly-item ${a.severity}" onclick="showAnomalyGraph(window._anomalyList[${idx}])"><div class="atitle"><span class="severity-tag ${a.severity}">${a.severity}</span>${a.type}</div><div><strong>${a.siteName} (${a.siteId})</strong> -" ${a.detail}</div></div>`;
       }
       html += `</div>`;
     }
@@ -1606,22 +1606,22 @@ function checkCriticalThresholds(current, drainages) {
       if (currentTemp >= critTemp) {
         anomalies.push({siteId:thresh.id, siteName, drainage:drainageName, severity:"critical",
           type:"AT OR ABOVE CRITICAL TEMPERATURE",
-          detail:`${currentTemp.toFixed(1)}Ã‚Â°C is AT or ABOVE the critical threshold of ${critTemp.toFixed(1)}Ã‚Â°C`
+          detail:`${currentTemp.toFixed(1)}°C is AT or ABOVE the critical threshold of ${critTemp.toFixed(1)}°C`
         });
       } else if (currentTemp >= critTemp * 0.95) {
         anomalies.push({siteId:thresh.id, siteName, drainage:drainageName, severity:"critical",
           type:"Within 5% of critical temperature",
-          detail:`${currentTemp.toFixed(1)}Ã‚Â°C is within 5% of the critical threshold of ${critTemp.toFixed(1)}Ã‚Â°C`
+          detail:`${currentTemp.toFixed(1)}°C is within 5% of the critical threshold of ${critTemp.toFixed(1)}°C`
         });
       } else if (currentTemp >= critTemp * 0.90) {
         anomalies.push({siteId:thresh.id, siteName, drainage:drainageName, severity:"high",
           type:"Within 10% of critical temperature",
-          detail:`${currentTemp.toFixed(1)}Ã‚Â°C is within 10% of the critical threshold of ${critTemp.toFixed(1)}Ã‚Â°C`
+          detail:`${currentTemp.toFixed(1)}°C is within 10% of the critical threshold of ${critTemp.toFixed(1)}°C`
         });
       } else if (currentTemp >= critTemp * 0.85) {
         anomalies.push({siteId:thresh.id, siteName, drainage:drainageName, severity:"medium",
           type:"Approaching critical temperature (within 15%)",
-          detail:`${currentTemp.toFixed(1)}Ã‚Â°C is within 15% of the critical threshold of ${critTemp.toFixed(1)}Ã‚Â°C`
+          detail:`${currentTemp.toFixed(1)}°C is within 15% of the critical threshold of ${critTemp.toFixed(1)}°C`
         });
       }
     }
@@ -2049,7 +2049,7 @@ async function showAnomalyGraph(anomaly) {
   } else {
     paramCd = "00060";
   }
-  const paramLabel = paramCd === "00010" ? "Temperature (Ã‚Â°C)" : "Discharge (cfs)";
+  const paramLabel = paramCd === "00010" ? "Temperature (°C)" : "Discharge (cfs)";
 
   // Show loading modal
   const modal = document.createElement("div");
@@ -2102,7 +2102,7 @@ async function showAnomalyGraph(anomaly) {
       const firstDate = dvData[0].date;
       const lastDate = dvData[dvData.length-1].date;
       datasets.push({
-        label: `Critical Threshold (${critValue} ${paramCd==="00010"?"Ã‚Â°C":"cfs"})`,
+        label: `Critical Threshold (${critValue} ${paramCd==="00010"?"°C":"cfs"})`,
         data: [{x:firstDate, y:critValue}, {x:lastDate, y:critValue}],
         borderColor: "#dc2626",
         borderWidth: 2.5, borderDash: [8,4], fill: false, pointRadius: 0
@@ -2195,7 +2195,7 @@ async function showAnomalyGraph(anomaly) {
       options:{responsive:true, maintainAspectRatio:false,
         plugins:{legend:{position:"bottom"}},
         scales:{x:{type:"time",time:{displayFormats:{hour:"MMM d ha",day:"MMM d"}}},
-          y:{title:{display:true,text:paramCd==="00010"?"Temperature (Ã‚Â°C)":"Discharge (cfs)"}}}}
+          y:{title:{display:true,text:paramCd==="00010"?"Temperature (°C)":"Discharge (cfs)"}}}}
     });
     return;
   }
@@ -2255,7 +2255,7 @@ async function showAnomalyGraph(anomaly) {
           plugins: {legend: {position: "bottom"}},
           scales: {
             x: {type: "time", time: {displayFormats: {hour: "MMM d ha", day: "MMM d"}}},
-            y: {title: {display: true, text: paramCd === "00010" ? "Ã‚Â°C" : "cfs"}, beginAtZero: paramCd === "00060"}
+            y: {title: {display: true, text: paramCd === "00010" ? "°C" : "cfs"}, beginAtZero: paramCd === "00060"}
           }
         }
       });
@@ -2345,7 +2345,7 @@ async function showSiteGraph(siteId, siteName, drainageName) {
     new Chart(document.getElementById("siteChartT").getContext("2d"), {
       type: "line", data: { datasets },
       options: { responsive:true, maintainAspectRatio:false, plugins:{legend:{position:"bottom"}},
-        scales:{ x:{type:"time",time:{displayFormats:{hour:"MMM d ha",day:"MMM d"}}}, y:{title:{display:true,text:"Temperature (Ã‚Â°C)"}} } }
+        scales:{ x:{type:"time",time:{displayFormats:{hour:"MMM d ha",day:"MMM d"}}}, y:{title:{display:true,text:"Temperature (°C)"}} } }
     });
   } else {
     document.getElementById("siteChartT").parentElement.innerHTML = '<p style="color:#94a3b8;text-align:center;padding:20px">No temperature data available</p>';
