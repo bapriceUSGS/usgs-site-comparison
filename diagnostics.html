@@ -59,6 +59,7 @@
         <a href="weather.html" style="color:#94a3b8;text-decoration:none">Weather</a>
         <a href="diagnostics.html" style="color:white;text-decoration:none;font-weight:600;border-bottom:2px solid white;padding-bottom:2px">Diagnostics</a>
         <a href="winter.html" style="color:#94a3b8;text-decoration:none">Winter</a>
+        <a href="compare.html" style="color:#94a3b8;text-decoration:none">Compare</a>
     </div>
     <header>
         <h1>Site Diagnostics</h1>
@@ -225,11 +226,11 @@ function checkFlatLine(siteData) {
     return issues;
 }
 
-// CHECK 4: Heavy painting (sensor buried/debris - abnormal noise amplitude)
-// A buried or sediment-covered sensor shows sudden bursts of excessive noise/jitter
-// that are much larger than the site's normal signal variability.
-// Detection: slide a window across the data, compare local noise to the site's baseline noise.
-// If local noise is 3x+ baseline = painting.
+// CHECK 4: Heavy painting (buried sensor - constant direction reversals)
+// Painting = nearly every consecutive reading reverses direction (up-down-up-down)
+// Normal = values often continue the same direction for multiple readings (smooth runs)
+// Detection: count what % of readings reverse direction from the previous.
+// Normal signal: 40-60% reversals. Painting: 75%+ reversals (constant zigzag)
 function checkHeavyPainting(siteData) {
     const issues = [];
     for (const [sid, data] of Object.entries(siteData)) {
@@ -237,47 +238,40 @@ function checkHeavyPainting(siteData) {
         const vals = data['00065']; // gage height ONLY
         if (!vals || vals.length < 80) continue;
 
-        // Calculate consecutive absolute differences for the entire record
-        const diffs = [];
-        for (let i = 1; i < vals.length; i++) {
-            diffs.push(Math.abs(vals[i].value - vals[i-1].value));
-        }
+        // Need at least 48h of data
+        const now = Date.now();
+        const recent = vals.filter(v => v.time >= now - 48*3600000);
+        if (recent.length < 60) continue;
 
-        // Find the baseline noise: median of all consecutive diffs
-        const sorted = [...diffs].sort((a,b) => a - b);
-        const median = sorted[Math.floor(sorted.length * 0.5)];
-        const baseline = sorted[Math.floor(sorted.length * 0.25)]; // 25th percentile as "clean" baseline
-
-        // If baseline is 0 or near 0, site might be too stable to detect painting
-        if (baseline < 0.001 && median < 0.005) continue;
-
-        // Slide a window (2 hours = ~8 readings at 15-min) and find periods of elevated noise
-        const windowSize = 8;
-        let maxWindowNoise = 0;
-        let paintingWindows = 0;
-        const threshold = Math.max(median * 3, 0.05); // noise must be 3x median OR > 0.05 ft
-
-        for (let i = 0; i <= diffs.length - windowSize; i++) {
-            const windowDiffs = diffs.slice(i, i + windowSize);
-            const windowAvg = windowDiffs.reduce((a,d) => a + d, 0) / windowSize;
-            if (windowAvg > threshold) {
-                paintingWindows++;
-                if (windowAvg > maxWindowNoise) maxWindowNoise = windowAvg;
+        // Count direction reversals
+        let reversals = 0;
+        let totalComparisons = 0;
+        for (let i = 2; i < recent.length; i++) {
+            const d1 = recent[i-1].value - recent[i-2].value; // previous direction
+            const d2 = recent[i].value - recent[i-1].value;   // current direction
+            // Only count if both moves are non-zero (skip flat readings)
+            if (Math.abs(d1) > 0.001 && Math.abs(d2) > 0.001) {
+                totalComparisons++;
+                if ((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) {
+                    reversals++;
+                }
             }
         }
 
-        // Flag if a significant portion of the record shows elevated noise
-        const pctPainting = paintingWindows / (diffs.length - windowSize + 1);
+        if (totalComparisons < 30) continue;
+        const reversalRate = reversals / totalComparisons;
 
-        // Heavy painting: >20% of the record has noise 3x+ above baseline
-        // Light painting: 5-20%
-        if (pctPainting >= 0.20) {
+        // Painting: 75%+ reversals sustained across most of the record
+        // Also verify the oscillation amplitude is significant (not just sensor noise at 0.01 ft)
+        const diffs = [];
+        for (let i = 1; i < recent.length; i++) {
+            diffs.push(Math.abs(recent[i].value - recent[i-1].value));
+        }
+        const avgOscillation = diffs.reduce((a,d) => a+d, 0) / diffs.length;
+
+        if (reversalRate >= 0.75 && avgOscillation > 0.02) {
             issues.push({id: sid, name: data.name, issue: 'Heavy Painting',
-                detail: `${(pctPainting*100).toFixed(0)}% of record shows elevated noise. Possible debris/sediment on sensor.`,
-                type: 'paint', ghData: vals});
-        } else if (pctPainting >= 0.05) {
-            issues.push({id: sid, name: data.name, issue: 'Light Painting',
-                detail: `${(pctPainting*100).toFixed(0)}% of record shows elevated noise. Possible intermittent debris/sediment.`,
+                detail: `${(reversalRate*100).toFixed(0)}% direction reversals (normal: ~50%). Avg oscillation: ${(avgOscillation*100).toFixed(1)} hundredths/reading. Likely buried/debris on sensor.`,
                 type: 'paint', ghData: vals});
         }
     }
