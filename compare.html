@@ -30,7 +30,6 @@
 <body>
 <div class="container">
     <div style="background:#334155;padding:8px 20px;border-radius:8px 8px 0 0;display:flex;gap:15px;font-size:0.85em;flex-wrap:wrap;align-items:center">
-        <a href="discharge.html" style="color:#94a3b8;text-decoration:none">Discharge & Temperature</a>
         <a href="qw.html" style="color:#94a3b8;text-decoration:none">Water Quality</a>
         <a href="fires.html" style="color:#94a3b8;text-decoration:none">Fire</a>
         <a href="weather.html" style="color:#94a3b8;text-decoration:none">Weather</a>
@@ -67,8 +66,10 @@ const SITE_NAMES = {"06006000":"Red Rock Cr ab Lakes, nr Lakeview, MT","06012500
 
 // ===== OFFICE-BASED COMPARISON GROUPS =====
 // Each office has its own set of comparison groups.
-// Add new offices here over time.
-const OFFICE_GROUPS = {
+// NOTE: These are FALLBACK groups used only if config/comparison_groups.csv
+// cannot be loaded. To add/edit comparisons, edit config/comparison_groups.csv
+// in Excel instead - it overrides this list when the page loads.
+let OFFICE_GROUPS = {
   "Western MT": [
     {name:"Big Hole River - Upper", sites:["06024450","06024540","06024580"]},
     {name:"Big Hole River - Lower", sites:["06025250","06025500","06026210","06026420"]},
@@ -115,6 +116,100 @@ const OFFICE_GROUPS = {
 };
 
 const COLORS = ['#2563eb','#dc2626','#059669','#d97706','#7c3aed','#0891b2','#be185d','#4d7c0f','#6366f1','#ea580c'];
+
+// ===== CSV-DRIVEN COMPARISON GROUPS =====
+// Loads config/comparison_groups.csv so groups can be managed in Excel.
+// Columns: Office, Group Name, Parameter, Site IDs, Sum Sites, Sum Compare To, Sum Label
+// - Site IDs / Sum Sites are semicolon-separated (e.g. 06012500;06016000)
+// - Parameter is "Discharge" or "Temperature"
+// - Sum columns are optional (leave blank for normal groups)
+function parseCSVLine(line) {
+    // Simple CSV parser that handles quoted fields containing commas
+    const fields = [];
+    let cur = '', inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+        const c = line[i];
+        if (c === '"') {
+            if (inQuotes && line[i+1] === '"') { cur += '"'; i++; }
+            else inQuotes = !inQuotes;
+        } else if (c === ',' && !inQuotes) {
+            fields.push(cur); cur = '';
+        } else {
+            cur += c;
+        }
+    }
+    fields.push(cur);
+    return fields.map(f => f.trim());
+}
+
+// Restore leading zeros Excel strips from USGS site numbers.
+// USGS surface-water site numbers are 8 digits (some 15-digit for groundwater).
+// If Excel dropped a leading zero, a normal 8-digit ID shows up as 7 digits.
+function normalizeSiteId(id) {
+    const s = String(id).trim();
+    if (!s) return s;
+    if (!/^\d+$/.test(s)) return s; // leave non-numeric alone
+    // Pad 7-digit numbers to 8 (most common Excel case).
+    if (s.length === 7) return '0' + s;
+    // Pad 6-digit (rare double-strip) to 8 as well.
+    if (s.length === 6) return '00' + s;
+    return s;
+}
+
+async function loadGroupsFromCSV() {
+    try {
+        const resp = await fetch('config/comparison_groups.csv?_t=' + Date.now());
+        if (!resp.ok) return false;
+        const text = await resp.text();
+        const lines = text.split(/\r?\n/).filter(l => l.trim());
+        if (lines.length < 2) return false;
+
+        const header = parseCSVLine(lines[0]).map(h => h.toLowerCase());
+        const iOffice = header.indexOf('office');
+        const iName = header.indexOf('group name');
+        const iParam = header.indexOf('parameter');
+        const iSites = header.indexOf('site ids');
+        const iSumSites = header.indexOf('sum sites');
+        const iSumTo = header.indexOf('sum compare to');
+        const iSumLabel = header.indexOf('sum label');
+        if (iOffice < 0 || iName < 0 || iSites < 0) return false;
+
+        const parsed = {};
+        for (let r = 1; r < lines.length; r++) {
+            const f = parseCSVLine(lines[r]);
+            const office = f[iOffice];
+            const name = f[iName];
+            if (!office || !name) continue;
+
+            const sites = (f[iSites] || '').split(';').map(s => normalizeSiteId(s)).filter(Boolean);
+            if (sites.length === 0) continue;
+
+            const paramText = (iParam >= 0 ? f[iParam] : '').toLowerCase();
+            const group = { name, sites };
+            if (paramText.startsWith('temp')) group.param = '00010';
+
+            // Optional computed-sum line
+            const sumSites = iSumSites >= 0 ? (f[iSumSites] || '').split(';').map(s => normalizeSiteId(s)).filter(Boolean) : [];
+            const sumTo = iSumTo >= 0 ? normalizeSiteId(f[iSumTo] || '') : '';
+            if (sumSites.length >= 2 && sumTo) {
+                const sumLabel = (iSumLabel >= 0 && f[iSumLabel]) ? f[iSumLabel] : 'Computed sum';
+                group.sums = [{ name: sumLabel, addSites: sumSites, compareTo: sumTo }];
+            }
+
+            if (!parsed[office]) parsed[office] = [];
+            parsed[office].push(group);
+        }
+
+        if (Object.keys(parsed).length > 0) {
+            OFFICE_GROUPS = parsed;
+            return true;
+        }
+        return false;
+    } catch(e) {
+        console.warn('Could not load comparison_groups.csv, using built-in groups.', e);
+        return false;
+    }
+}
 
 // Populate office dropdown
 function initDropdowns() {
@@ -347,8 +442,11 @@ async function loadComparisons() {
 }
 
 // Initialize and auto-load
-initDropdowns();
-loadComparisons();
+(async function init() {
+    await loadGroupsFromCSV(); // overrides OFFICE_GROUPS if CSV loads successfully
+    initDropdowns();
+    loadComparisons();
+})();
 </script>
 </body>
 </html>
