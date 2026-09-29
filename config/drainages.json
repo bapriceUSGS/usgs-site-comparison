@@ -1,0 +1,200 @@
+{
+  "drainages": [
+    {
+      "name": "Clark Fork Mainstem",
+      "type": "mainstem",
+      "sites": [
+        {"id": "12323800", "name": "Clark Fork near Galen", "order": 1},
+        {"id": "12324200", "name": "Clark Fork at Deer Lodge", "order": 2},
+        {"id": "12324400", "name": "Clark Fork ab Little Blackfoot R nr Garrison", "order": 3},
+        {"id": "12324680", "name": "Clark Fork at Goldcreek", "order": 4},
+        {"id": "12331800", "name": "Clark Fork near Drummond", "order": 5},
+        {"id": "12334550", "name": "Clark Fork at Turah Bridge nr Bonner", "order": 6},
+        {"id": "12340500", "name": "Clark Fork above Missoula", "order": 7},
+        {"id": "12353000", "name": "Clark Fork below Missoula", "order": 8},
+        {"id": "12354500", "name": "Clark Fork at St. Regis", "order": 9},
+        {"id": "12389000", "name": "Clark Fork near Plains", "order": 10}
+      ]
+    },
+    {
+      "name": "Clark Fork Tributaries",
+      "type": "tributaries",
+      "parent": "Clark Fork Mainstem",
+      "sites": [
+        {"id": "12324590", "name": "Little Blackfoot River near Garrison", "order": 1},
+        {"id": "12331500", "name": "Flint Creek near Drummond", "order": 2},
+        {"id": "12334510", "name": "Rock Creek near Clinton", "order": 3},
+        {"id": "12340000", "name": "Blackfoot River near Bonner", "order": 4},
+        {"id": "12354000", "name": "St. Regis River near St. Regis", "order": 5}
+      ]
+    },
+    {
+      "name": "Bitterroot River",
+      "type": "mainstem",
+      "sites": [
+        {"id": "12342500", "name": "West Fork Bitterroot River nr Conner", "order": 1},
+        {"id": "12344000", "name": "Bitterroot River near Darby", "order": 2},
+        {"id": "12350250", "name": "Bitterroot River at Bell Crossing nr Victor", "order": 3},
+        {"id": "12352500", "name": "Bitterroot River near Missoula", "order": 4}
+      ]
+    },
+    {
+      "name": "Flathead River above Lake",
+      "type": "mainstem",
+      "sites": [
+        {"id": "12355500", "name": "N F Flathead River nr Columbia Falls", "order": 1},
+        {"id": "12358500", "name": "M F Flathead River near West Glacier", "order": 2},
+        {"id": "12362500", "name": "S F Flathead River nr Columbia Falls", "order": 3},
+        {"id": "12363000", "name": "Flathead River at Columbia Falls", "order": 4}
+      ]
+    },
+    {
+      "name": "Flathead River below Lake",
+      "type": "mainstem",
+      "sites": [
+        {"id": "12372000", "name": "Flathead River near Polson", "order": 1},
+        {"id": "12388700", "name": "Flathead River at Perma", "order": 2}
+      ]
+    },
+    {
+      "name": "Jefferson River",
+      "type": "mainstem",
+      "sites": [
+        {"id": "6023100", "name": "Beaverhead River at Twin Bridges", "order": 1},
+        {"id": "6026500", "name": "Jefferson River near Twin Bridges", "order": 2},
+        {"id": "6027600", "name": "Jefferson River at Parsons Bdg nr Silver Star", "order": 3},
+        {"id": "6036650", "name": "Jefferson River near Three Forks", "order": 4}
+      ]
+    },
+    {
+      "name": "Madison River",
+      "type": "mainstem",
+      "sites": [
+        {"id": "6037500", "name": "Madison River near West Yellowstone", "order": 1},
+        {"id": "6038800", "name": "Madison River at Kirby Ranch nr Cameron", "order": 2},
+        {"id": "6040000", "name": "Madison River near Cameron", "order": 3},
+        {"id": "6041000", "name": "Madison River bl Ennis Lake nr McAllister", "order": 4},
+        {"id": "6041500", "name": "Madison River near Norris", "order": 5}
+      ]
+    },
+    {
+      "name": "Gallatin River",
+      "type": "mainstem",
+      "sites": [
+        {"id": "6043500", "name": "Gallatin River near Gallatin Gateway", "order": 1},
+        {"id": "6052500", "name": "Gallatin River at Logan", "order": 2}
+      ]
+    },
+    {
+      "name": "Missouri River Mainstem",
+      "type": "mainstem",
+      "sites": [
+        {"id": "6054500", "name": "Missouri River at Toston", "order": 1},
+        {"id": "6066500", "name": "Missouri River bl Holter Dam nr Wolf Cr", "order": 2},
+        {"id": "6074000", "name": "Missouri River at Cascade", "order": 3},
+        {"id": "6090300", "name": "Missouri River near Great Falls", "order": 4},
+        {"id": "6090800", "name": "Missouri River at Fort Benton", "order": 5},
+        {"id": "6109500", "name": "Missouri River at Virgelle", "order": 6},
+        {"id": "6115200", "name": "Missouri River near Landusky", "order": 7},
+        {"id": "6177000", "name": "Missouri River near Wolf Point", "order": 8},
+        {"id": "6185500", "name": "Missouri River near Culbertson", "order": 9}
+      ]
+    },
+    {
+      "name": "Sun River",
+      "type": "mainstem",
+      "sites": [
+        {"id": "6080900", "name": "Sun River bl Diversion Dam nr Augusta", "order": 1},
+        {"id": "6085800", "name": "Sun River at Simms", "order": 2},
+        {"id": "6089000", "name": "Sun River near Vaughn", "order": 3}
+      ]
+    },
+    {
+      "name": "Yellowstone River Mainstem",
+      "type": "mainstem",
+      "sites": [
+        {"id": "6191500", "name": "Yellowstone River at Corwin Springs", "order": 1},
+        {"id": "6192500", "name": "Yellowstone River near Livingston", "order": 2},
+        {"id": "6195950", "name": "Yellowstone River at Big Timber", "order": 3},
+        {"id": "6214500", "name": "Yellowstone River at Billings", "order": 4},
+        {"id": "6295000", "name": "Yellowstone River at Forsyth", "order": 5},
+        {"id": "6309000", "name": "Yellowstone River at Miles City", "order": 6},
+        {"id": "6327500", "name": "Yellowstone River at Glendive", "order": 7},
+        {"id": "6329500", "name": "Yellowstone River near Sidney", "order": 8}
+      ]
+    },
+    {
+      "name": "Yellowstone Tributaries",
+      "type": "tributaries",
+      "parent": "Yellowstone River Mainstem",
+      "sites": [
+        {"id": "6195600", "name": "Shields River nr Livingston", "order": 1},
+        {"id": "6200000", "name": "Boulder River at Big Timber", "order": 2},
+        {"id": "6205000", "name": "Stillwater River near Absarokee", "order": 3},
+        {"id": "6207500", "name": "Clarks Fork Yellowstone River nr Belfry", "order": 4},
+        {"id": "6209500", "name": "Rock Creek near Red Lodge", "order": 5}
+      ]
+    },
+    {
+      "name": "Bighorn River",
+      "type": "mainstem",
+      "sites": [
+        {"id": "6274300", "name": "Bighorn River at Basin WY", "order": 1},
+        {"id": "6279500", "name": "Bighorn River at Kane WY", "order": 2},
+        {"id": "6287000", "name": "Bighorn R bl Yellowtail Afterbay Dam nr St. Xavier", "order": 3},
+        {"id": "6294500", "name": "Bighorn River ab Tullock Cr nr Bighorn", "order": 4}
+      ]
+    },
+    {
+      "name": "Tongue River",
+      "type": "mainstem",
+      "sites": [
+        {"id": "6306300", "name": "Tongue River at State Line nr Decker", "order": 1},
+        {"id": "6307500", "name": "Tongue River at Tongue R Dam nr Decker", "order": 2},
+        {"id": "6307830", "name": "Tongue R bl Brandenberg bridge nr Ashland", "order": 3},
+        {"id": "6308500", "name": "Tongue River at Miles City", "order": 4}
+      ]
+    },
+    {
+      "name": "Powder River",
+      "type": "mainstem",
+      "sites": [
+        {"id": "6317000", "name": "Powder River at Arvada WY", "order": 1},
+        {"id": "6324500", "name": "Powder River at Moorhead", "order": 2},
+        {"id": "6326500", "name": "Powder River near Locate", "order": 3}
+      ]
+    },
+    {
+      "name": "Musselshell River",
+      "type": "mainstem",
+      "sites": [
+        {"id": "6120500", "name": "Musselshell River at Harlowton", "order": 1},
+        {"id": "6126500", "name": "Musselshell River near Roundup", "order": 2},
+        {"id": "6127500", "name": "Musselshell River at Musselshell", "order": 3},
+        {"id": "6130500", "name": "Musselshell River at Mosby", "order": 4}
+      ]
+    },
+    {
+      "name": "Milk River",
+      "type": "mainstem",
+      "sites": [
+        {"id": "6140500", "name": "Milk River at Havre", "order": 1},
+        {"id": "6154100", "name": "Milk River near Harlem", "order": 2},
+        {"id": "6155500", "name": "Milk River at Malta", "order": 3},
+        {"id": "6174500", "name": "Milk River at Nashua", "order": 4}
+      ]
+    }
+  ],
+  "parameters": {
+    "discharge": {"code": "00060", "name": "Discharge", "units": "cfs"},
+    "temperature": {"code": "00010", "name": "Water Temperature", "units": "C"}
+  },
+  "thresholds": {
+    "temperature_peer_deviation_celsius": 2.5,
+    "temperature_historical_deviation_celsius": 3.0,
+    "discharge_downstream_deficit_percent": 10,
+    "discharge_historical_deviation_percent": 40,
+    "minimum_sites_for_peer_comparison": 3,
+    "percent_of_normal_outlier_threshold": 30
+  }
+}

@@ -1,0 +1,43 @@
+Office,Group Name,Parameter,Site IDs,Sum Sites,Sum Compare To,Sum Label
+Western MT,Big Hole River - Upper,Discharge,06024450;06024540;06024580,,,
+Western MT,Big Hole River - Lower,Discharge,06025250;06025500;06026210;06026420,,,
+Western MT,Kootenai Tributaries,Discharge,12302055;12304500;12389500;12390700,,,
+Western MT,Butte Area - Blacktail/Silver Bow,Discharge,12323233;12323242;12323250,,,
+Western MT,Silver Bow to Clark Fork,Discharge,12323600;12323750;12323800,,,
+Western MT,Clark Fork - Galen to Garrison,Discharge,12323800;12324200;12324400,,,
+Western MT,Clark Fork - Garrison to Drummond,Discharge,12324400;12324680;12331800,,,
+Western MT,Clark Fork at Turah + Blackfoot = Above Missoula,Discharge,12334550;12340000;12340500,12334550;12340000,12340500,Turah + Blackfoot (computed)
+Western MT,Bitterroot - Conner to Victor,Discharge,12342500;12344000;12350250,,,
+Western MT,CF Above + Bitterroot = CF Below Missoula,Discharge,12340500;12352500;12353000,12340500;12352500,12353000,CF Above + Bitterroot (computed)
+Western MT,Flathead Forks = Columbia Falls,Discharge,12355000;12355500;12358500;12362500;12363000,12355500;12358500;12362500,12363000,NF + MF + SF (computed)
+Western MT,TEMP: Clark Fork mainstem,Temperature,12323800;12324200;12324400;12324680;12331800;12334550;12340500;12353000;12353650;12354500;12354700;12389000,,,
+Western MT,TEMP: Bitterroot River,Temperature,12342500;12344000;12350250;12352500,,,
+Western MT,TEMP: Clark Fork - Superior to Plains,Temperature,12353650;12354500;12354700;12389000,,,
+Western MT,TEMP: Blackfoot River,Temperature,12335100;12338300;12340000,,,
+Western MT,TEMP: Rock Creek / Flint Creek,Temperature,12334510;12332000;12331500,,,
+Western MT,TEMP: Flathead River mainstem,Temperature,12363000;12366500;12372000;12388700,,,
+Western MT,TEMP: Flathead Forks,Temperature,12355500;12358500;12362500,,,
+Western MT,TEMP: Big Hole River,Temperature,06024450;06024540;06024580;06025250;06025500;06026210;06026420,,,
+Western MT,TEMP: Kootenai area,Temperature,12301250;12301933;12302055;12304500,,,
+Central MT,Jefferson River,Discharge,06026500;06027600;06036650,,,
+Central MT,Firehole/Gibbon = Madison near West Yellowstone,Discharge,06036805;06036905;06037100;06037500,06036905;06037100,06037500,Firehole + Gibbon (computed)
+Central MT,Madison River - Cameron to Norris,Discharge,06038800;06040000;06040050;06040800;06041000;06041500,,,
+Central MT,Gallatin River,Discharge,06043120;06043500;06052500,,,
+Central MT,Jefferson + Madison + Gallatin = Missouri at Toston,Discharge,06036650;06041500;06052500;06054500,06036650;06041500;06052500,06054500,Jefferson + Madison + Gallatin (computed)
+Central MT,Missouri River - Hauser to Ulm,Discharge,06065500;06066500;06074000;06078200,,,
+Central MT,Smith River,Discharge,06076690;06077200;06077500,,,
+Central MT,Sun River,Discharge,06080900;06082200;06085800;06089000,,,
+Central MT,Missouri River - Great Falls to Virgelle,Discharge,06090300;06090800;06109500,,,
+Central MT,Birch Creek,Discharge,06094900;06096001;06097000;06098120,,,
+Central MT,Two Medicine/Cut Bank/Marias,Discharge,06091700;06092020;06098800;06099000;06099500,,,
+Central MT,Boxelder/Big Sandy/Beaver Creek,Discharge,06137570;06137575;06138580;06139500;06139800;06139850;06139900,,,
+Central MT,TEMP: Jefferson River,Temperature,06026500;06027600;06036650,,,
+Central MT,TEMP: Madison River,Temperature,06036905;06037500;06038800;06040000;06040050;06041000;06041500,,,
+Central MT,TEMP: Gallatin River,Temperature,06043120;06043500;06052500,,,
+Central MT,TEMP: Missouri River - Toston to Ulm,Temperature,06054500;06065500;06066500;06074000;06078200,,,
+Central MT,TEMP: Smith River,Temperature,06076690;06077200;06077500,,,
+Central MT,TEMP: Sun River,Temperature,06080900;06082200;06085800;06089000,,,
+Central MT,TEMP: Missouri River - GF to Virgelle,Temperature,06090300;06090800;06109500,,,
+Western MT,warm springs +silverbow warm springs=clark fork galen,Discharge,12323770;12323750;12323800,12323770;12323750,12323800,WS + SB WS=CF Galen
+Western MT,Clark Fork Drummond + Rock Creek=CF Turah,Discharge,12331800;12334510;12334550,12331800;12334510,12334550,Clark Fork Drummond + Rock Creek=CF Turah
+Western MT,Clark Fork St Regis+Flathead Perma=Clark Fork Plains,Discharge,12388700;12354500;12389000,12388700;12354500,12389000,CF St Regis +Flathead Perma= CF Plains
